@@ -3,13 +3,13 @@ import Settings._
 
 lazy val root = project.root
   .setName("dddblueprint")
-  .setDescription("Schema for DDD projects")
+  .setDescription("Build of dddblueprint")
   .configureRoot
-  .aggregate(common, first, second)
+  .aggregate(core, first, second)
 
-lazy val common = project.from("common")
-  .setName("common")
-  .setDescription("Common utilities")
+lazy val core = project.from("core")
+  .setName("dddblueprint-common")
+  .setDescription("Schema for DDD projects")
   .setInitialImport("_")
   .configureModule
   .configureTests()
@@ -25,7 +25,7 @@ lazy val first = project.from("first")
   .setInitialImport("first._")
   .configureModule
   .configureTests()
-  .compileAndTestDependsOn(common)
+  .compileAndTestDependsOn(core)
   .configureRun("dddblueprint.first.First")
 
 lazy val second = project.from("second")
@@ -34,7 +34,7 @@ lazy val second = project.from("second")
   .setInitialImport("second._")
   .configureModule
   .configureTests()
-  .compileAndTestDependsOn(common)
+  .compileAndTestDependsOn(core)
   .configureRun("dddblueprint.second.Second")
 
 addCommandAlias("fullTest", ";test;fun:test;it:test;scalastyle")
