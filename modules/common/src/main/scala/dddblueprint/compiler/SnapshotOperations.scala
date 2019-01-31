@@ -77,6 +77,24 @@ class SnapshotOperations[F[_]: Monad: SchemaErrorRaise: SnapshotState] {
         }
         .set[F]
     } yield ()
+  def removeDefinition(ref: validated.DefinitionRef): F[Unit] =
+    for {
+      oldVersion <- SnapshotState[F].get
+      name <- oldVersion.namespaces.definitions.get(ref) match {
+        case Some(name) => name.pure[F]
+        case None       => SchemaError.invalidRef[F, validated.DefinitionName](ref.id)
+      }
+      _ <- oldVersion
+        .lens(_.domains)
+        .modify { domains =>
+          val newDefinitions = domains.get(name.domain) match {
+            case Some(definitions) => definitions.lens(_.definitions).modify(_ - ref)
+            case None              => validated.Definitions()
+          }
+          domains.updated(name.domain, newDefinitions)
+        }
+        .set[F]
+    } yield ()
 
   def translateDomainRef(ref: schema.DomainRef): F[validated.DomainName] =
     ref.transformInto[validated.DomainName].pure[F]

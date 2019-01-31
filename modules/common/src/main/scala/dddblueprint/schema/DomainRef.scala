@@ -1,7 +1,7 @@
 package dddblueprint
 package schema
 
-import cats.{ Eq, Show }, cats.implicits._
+import cats.Eq, cats.derived.ShowPretty, cats.implicits._
 import io.scalaland.catnip.Semi
 
-@Semi(Eq, Show) final case class DomainRef(name: String)
+@Semi(Eq, ShowPretty) final case class DomainRef(name: String)
