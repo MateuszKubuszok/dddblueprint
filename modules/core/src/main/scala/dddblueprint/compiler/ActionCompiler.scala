@@ -24,11 +24,22 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
       else ().pure[F]
     } yield internalRef
 
-  // TODO: implement missing data
-  private val mapData: input.Data => F[output.Data] = {
-    case p: input.Data.Primitive => (PrimitivesCompiler(p): output.Data).pure[F]
-    case _ => ??? // TODO: implement - assume it was already defined when used
+  private lazy val mapArgument: input.Argument => F[output.Argument] = {
+    case ref: input.DefinitionRef => snapshotOperations.translateDefinitionRef(ref).map(r => r: output.Argument)
+
+    case p: input.Data.Primitive => (PrimitivesCompiler(p): output.Argument).pure[F]
+
+    case tuple @ input.Data.Definition.Record.Tuple(ref, _) =>
+      for {
+        internalRef <- definitionNotExists(ref)
+        _ <- createDefinition(tuple)
+      } yield internalRef: output.Argument
   }
+
+  private def mapFields(fields: input.Data.Definition.FieldSet): F[output.Data.Definition.Record.FieldSet] =
+    Traverse[ListMap[String, ?]].sequence[F, output.Argument](fields.map {
+      case (k, v) => k -> mapArgument(v)
+    })
 
   def apply(action: input.Action): F[Unit] = action match {
     case input.Action.CreateDefinition(definition)           => createDefinition(definition)
@@ -39,7 +50,7 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
     case input.Action.RemoveRecordFields(definition, fields) => removeRecordFields(definition, fields)
   }
 
-  val createDefinition: input.Data.Definition => F[Unit] = {
+  lazy val createDefinition: input.Data.Definition => F[Unit] = {
     case input.Data.Definition.Enum(ref, values, ttype) =>
       for {
         internalRef <- definitionNotExists(ref)
@@ -55,9 +66,7 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
     case input.Data.Definition.Record.Tuple(ref, fields) =>
       for {
         internalRef <- definitionNotExists(ref)
-        internalFields <- Traverse[ListMap[String, ?]].sequence[F, output.Data](fields.map {
-          case (k, v) => k -> mapData(v)
-        })
+        internalFields <- mapFields(fields)
         _ <- snapshotOperations.setDefinition(internalRef,
                                               output.Data.Definition.Record.Tuple(
                                                 ref    = internalRef,
@@ -68,9 +77,7 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
     case input.Data.Definition.Record.Entity(ref, fields) =>
       for {
         internalRef <- definitionNotExists(ref)
-        internalFields <- Traverse[ListMap[String, ?]].sequence[F, output.Data](fields.map {
-          case (k, v) => k -> mapData(v)
-        })
+        internalFields <- mapFields(fields)
         _ <- snapshotOperations.setDefinition(internalRef,
                                               output.Data.Definition.Record.Entity(
                                                 ref    = internalRef,
@@ -81,9 +88,7 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
     case input.Data.Definition.Record.Value(ref, fields) =>
       for {
         internalRef <- definitionNotExists(ref)
-        internalFields <- Traverse[ListMap[String, ?]].sequence[F, output.Data](fields.map {
-          case (k, v) => k -> mapData(v)
-        })
+        internalFields <- mapFields(fields)
         _ <- snapshotOperations.setDefinition(internalRef,
                                               output.Data.Definition.Record.Value(
                                                 ref    = internalRef,
@@ -94,9 +99,7 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
     case input.Data.Definition.Record.Event(ref, fields) =>
       for {
         internalRef <- definitionNotExists(ref)
-        internalFields <- Traverse[ListMap[String, ?]].sequence[F, output.Data](fields.map {
-          case (k, v) => k -> mapData(v)
-        })
+        internalFields <- mapFields(fields)
         _ <- snapshotOperations.setDefinition(internalRef,
                                               output.Data.Definition.Record.Event(
                                                 ref    = internalRef,
@@ -140,13 +143,13 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
       } yield ()
   }
 
-  val removeDefinition: input.DefinitionRef => F[Unit] = ref =>
+  lazy val removeDefinition: input.DefinitionRef => F[Unit] = ref =>
     for {
       internalRef <- definitionExists(ref)
       _ <- snapshotOperations.removeDefinition(internalRef)
     } yield ()
 
-  val addEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, newValues) =>
+  lazy val addEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, newValues) =>
     for {
       internalRef <- definitionExists(ref)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
@@ -162,7 +165,7 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
       }
     } yield ()
 
-  val removeEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, removedValues) =>
+  lazy val removeEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, removedValues) =>
     for {
       internalRef <- definitionExists(ref)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
@@ -181,19 +184,17 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
       }
     } yield ()
 
-  val addRecordFields: (input.DefinitionRef, input.Data.Definition.FieldSet) => F[Unit] = (ref, newFields) =>
+  lazy val addRecordFields: (input.DefinitionRef, input.Data.Definition.FieldSet) => F[Unit] = (ref, newFields) =>
     for {
       internalRef <- definitionExists(ref)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(record @ output.Data.Definition.Record.Aux(_, oldFields)) =>
-          Traverse[ListMap[String, ?]]
-            .sequence[F, output.Data](newFields.map { case (k, v) => k -> mapData(v) })
-            .flatMap { internalNewFields =>
-              val common = oldFields.keys.to[ListSet].intersect(newFields.keys.to[ListSet])
-              if (common.isEmpty) record.withFields(oldFields ++ internalNewFields).pure[F]
-              else SchemaError.recordFieldsExist[F, output.Data.Definition.Record](ref.domain.name, ref.name, common)
-            }
+          mapFields(newFields).flatMap { internalNewFields =>
+            val common = oldFields.keys.to[ListSet].intersect(newFields.keys.to[ListSet])
+            if (common.isEmpty) record.withFields(oldFields ++ internalNewFields).pure[F]
+            else SchemaError.recordFieldsExist[F, output.Data.Definition.Record](ref.domain.name, ref.name, common)
+          }
 
         case Some(other) =>
           SchemaError
@@ -203,7 +204,7 @@ class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOpera
       }
     } yield ()
 
-  val removeRecordFields: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, removedFields) =>
+  lazy val removeRecordFields: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, removedFields) =>
     for {
       internalRef <- definitionExists(ref)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)

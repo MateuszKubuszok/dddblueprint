@@ -6,11 +6,16 @@ import io.scalaland.catnip.Semi
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
+@Semi(Eq, ShowPretty) sealed trait Argument extends ADT
+@SuppressWarnings(Array("org.wartremover.warts.Equals")) object Argument
+
+@Semi(Eq, ShowPretty) final case class DefinitionRef(domain: DomainRef, name: String) extends Argument
+
 @Semi(Eq, ShowPretty) sealed trait Data extends ADT
 @SuppressWarnings(Array("org.wartremover.warts.Equals"))
 object Data {
 
-  @Semi(Eq, ShowPretty) sealed trait Primitive extends Data
+  @Semi(Eq, ShowPretty) sealed trait Primitive extends Data with Argument
   @Semi(Eq, ShowPretty) sealed trait Enumerable extends Data
 
   case object ID extends Primitive
@@ -29,13 +34,14 @@ object Data {
                                                 `type`:           Enumerable)
         extends Definition(ref)
 
-    type FieldSet = ListMap[String, Data]
+    type FieldSet = ListMap[String, Argument]
 
     @Semi(Eq, ShowPretty) sealed abstract class Record(override val ref: DefinitionRef) extends Definition(ref)
     object Record {
 
       @Semi(Eq, ShowPretty) final case class Tuple(override val ref: DefinitionRef, fields: FieldSet)
           extends Record(ref)
+          with Argument
 
       @Semi(Eq, ShowPretty) final case class Entity(override val ref: DefinitionRef, fields: FieldSet)
           extends Record(ref)
