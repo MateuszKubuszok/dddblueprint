@@ -1,4 +1,7 @@
 package dddblueprint
 package schema
 
-final case class History(migrations: List[Migration])
+import cats.{ Eq, Show }, cats.implicits._
+import io.scalaland.catnip.Semi
+
+@Semi(Eq, Show) final case class History(migrations: List[Migration])

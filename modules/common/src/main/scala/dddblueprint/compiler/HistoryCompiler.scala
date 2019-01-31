@@ -1,21 +1,18 @@
 package dddblueprint
 package compiler
 
-import cats.data.Validated.Valid
+import cats.Monad
+import cats.implicits._
 import monocle.macros.syntax.lens._
 
-object HistoryCompiler extends (schema.History => Result[validated.Blueprint]) {
+class HistoryCompiler[F[_]: Monad: SnapshotState](migrationCompiler: MigrationCompiler[F]) {
 
-  val emptyBlueprintSnapshot: Result[(validated.Blueprint, validated.Snapshot)] = Result.valid(validated.Blueprint() -> validated.Snapshot())
-
-  def apply(history: schema.History): Result[validated.Blueprint] =
-    history.migrations
-      .foldLeft(emptyBlueprintSnapshot) {
-        case (Valid((previousBlueprint, previousSnapshot)), migration) =>
-          MigrationCompiler(previousSnapshot, migration).map { newSnapshot =>
-            previousBlueprint.lens(_.versions).modify(_ :+ newSnapshot) -> newSnapshot
-          }
-        case (invalid, _) => invalid
-      }
-      .map(_._1)
+  def apply(history: schema.History): F[validated.Blueprint] =
+    history.migrations.foldLeft(validated.Blueprint().pure[F]) { (previousVersion, migration) =>
+      for {
+        oldBlueprint <- previousVersion
+        _ <- migrationCompiler(migration)
+        lastSnapshot <- SnapshotState[F].get
+      } yield oldBlueprint.lens(_.versions).modify(_ :+ lastSnapshot)
+    }
 }

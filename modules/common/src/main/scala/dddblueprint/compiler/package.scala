@@ -1,13 +1,15 @@
 package dddblueprint
 
-import cats.data.ValidatedNel
-import cats.implicits._
+import cats.mtl.{ FunctorRaise, MonadState }
 
 package object compiler {
 
-  type Result[A] = ValidatedNel[SchemaError, A]
-  object Result {
-    def valid[A](a: A):           Result[A] = a.validNel[SchemaError]
-    def error[A](e: SchemaError): Result[A] = e.invalidNel[A]
-  }
+  type BlueprintState[F[_]] = MonadState[F, validated.Blueprint]
+  object BlueprintState { def apply[F[_]: BlueprintState]: BlueprintState[F] = implicitly[BlueprintState[F]] }
+
+  type SnapshotState[F[_]] = MonadState[F, validated.Snapshot]
+  object SnapshotState { def apply[F[_]: SnapshotState]: SnapshotState[F] = implicitly[SnapshotState[F]] }
+
+  type SchemaErrorRaise[F[_]] = FunctorRaise[F, SchemaError]
+  object SchemaErrorRaise { def apply[F[_]: SchemaErrorRaise]: SchemaErrorRaise[F] = implicitly[SchemaErrorRaise[F]] }
 }

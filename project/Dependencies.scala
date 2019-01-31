@@ -6,19 +6,16 @@ object Dependencies {
 
   // scala version
   val scalaOrganization = "org.scala-lang"
-  val scalaVersion      = "2.12.7"
+  val scalaVersion      = "2.12.8"
 
   // build tools version
   val scalaFmtVersion = "1.5.1"
 
-  // aspectj version
-  val aspectjVersion = "1.9.2"
-
   // libraries versions
-  val catsVersion     = "1.2.0"
+  val catsVersion     = "1.6.0-RC1"
   val monixVersion    = "3.0.0-RC2"
   val monocleVersion  = "1.6.0-M1"
-  val specs2Version   = "4.3.3"
+  val specs2Version   = "4.4.1"
 
   // resolvers
   val resolvers = Seq(
@@ -29,6 +26,9 @@ object Dependencies {
   // functional libraries
   val cats               = "org.typelevel"                %% "cats-core"                 % catsVersion
   val catsLaws           = "org.typelevel"                %% "cats-laws"                 % catsVersion
+  val catsMTL            = "org.typelevel"                %% "cats-mtl-core"             % "0.4.0"
+  val catnip             = "io.scalaland"                 %% "catnip"                    % "0.5.1"
+  val chimney            = "io.scalaland"                 %% "chimney"                   % "0.3.0"
   val monocle            = "com.github.julien-truffaut"   %% "monocle-core"              % monocleVersion
   val monocleMacro       = "com.github.julien-truffaut"   %% "monocle-macro"             % monocleVersion
   val shapeless          = "com.chuusai"                  %% "shapeless"                 % "2.3.3"
@@ -57,12 +57,19 @@ trait Dependencies {
 
   val scalaFmtVersionUsed = scalaFmtVersion
 
-  val aspectjVersionUsed = aspectjVersion
-
   // resolvers
   val commonResolvers = resolvers
 
-  val mainDeps = Seq(cats, shapeless, scopt, scalaConfig, pureConfig, monixExecution, monixEval, monocle, monocleMacro, scalaLogging, logback)
+  val mainDeps = Seq(
+    // functional libraries
+    cats, catsMTL, catnip, chimney, monocle, monocleMacro, shapeless,
+    // async
+    monixExecution, monixEval,
+    // config
+    scopt, scalaConfig, pureConfig,
+    // logging
+    scalaLogging, logback
+  )
 
   val testDeps = Seq(catsLaws, spec2Core, spec2Mock, spec2Scalacheck)
 

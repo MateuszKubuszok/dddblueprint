@@ -1,4 +1,9 @@
 package dddblueprint
 package validated
 
-final case class DefinitionRef(domain: DomainRef, name: String)
+import java.util.UUID
+
+import cats.{ Eq, Show }, cats.implicits._
+import io.scalaland.catnip.Semi
+
+@Semi(Eq, Show) final case class DefinitionRef(id: UUID = UUID.randomUUID)

@@ -2,18 +2,18 @@ package dddblueprint
 package compiler
 
 import cats.implicits._
+import cats.Monad
 
-object MigrationCompiler extends ((validated.Snapshot, schema.Migration) => Result[validated.Snapshot]) {
+class MigrationCompiler[F[_]: Monad: SnapshotState](actionCompiler: ActionCompiler[F],
+                                                    validateTransition: ValidateTransition[F]) {
 
-  def apply(oldVersion: validated.Snapshot, migration: schema.Migration): Result[validated.Snapshot] =
-    migration.actions
-      .foldLeft(oldVersion -> Result.valid(oldVersion)) {
-        case ((lastValid, currentState), action) =>
-          // aggregates old errors with new ones that could appear for action(lastValid)
-          val nextState = (currentState, ActionCompiler(currentState.getOrElse(lastValid), action)).mapN {
-            case (_, newer) => newer
-          }
-          nextState.getOrElse(lastValid) -> nextState
+  def apply(migration: schema.Migration): F[Unit] =
+    for {
+      oldVersion <- SnapshotState[F].get
+      _ <- migration.actions.foldLeft(SnapshotState[F].modify(_.bumpVersion)) { (state, action) =>
+        state.flatMap(_ => actionCompiler(action))
       }
-      ._2
+      newVersion <- SnapshotState[F].get
+      _ <- validateTransition(oldVersion, newVersion)
+    } yield ()
 }
