@@ -3,7 +3,9 @@ package compiler
 
 import java.util.UUID
 
-import cats.Eq, cats.derived.ShowPretty
+import cats.Eq
+import cats.data.NonEmptyList
+import cats.derived.ShowPretty
 import cats.implicits._
 import cats.mtl.implicits._
 import io.scalaland.catnip.Semi
@@ -31,28 +33,28 @@ object SchemaError {
   final case class RecordFieldMissing(domain: String, name: String, values: ListSet[String]) extends SchemaError
 
   def invalidRef[F[_]: SchemaErrorRaise, A](ref: UUID): F[A] =
-    (InvalidRef(ref): SchemaError).raise[F, A]
+    NonEmptyList.one(InvalidRef(ref): SchemaError).raise[F, A]
 
   def domainMissing[F[_]: SchemaErrorRaise, A](domain: String): F[A] =
-    (DomainMissing(domain): SchemaError).raise[F, A]
+    NonEmptyList.one(DomainMissing(domain): SchemaError).raise[F, A]
 
   def definitionExists[F[_]: SchemaErrorRaise, A](domain: String, name: String): F[A] =
-    (DefinitionExists(domain, name): SchemaError).raise[F, A]
+    NonEmptyList.one(DefinitionExists(domain, name): SchemaError).raise[F, A]
   def definitionMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String): F[A] =
-    (DefinitionMissing(domain, name): SchemaError).raise[F, A]
+    NonEmptyList.one(DefinitionMissing(domain, name): SchemaError).raise[F, A]
   def definitionTypeMismatch[F[_]: SchemaErrorRaise, A](domain: String,
                                                         name:     String,
                                                         expected: String,
                                                         actual:   output.Data.Definition): F[A] =
-    (DefinitionTypeMismatch(domain, name, expected, actual): SchemaError).raise[F, A]
+    NonEmptyList.one(DefinitionTypeMismatch(domain, name, expected, actual): SchemaError).raise[F, A]
 
   def enumValuesExist[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
-    (EnumValuesExist(domain, name, values): SchemaError).raise[F, A]
+    NonEmptyList.one(EnumValuesExist(domain, name, values): SchemaError).raise[F, A]
   def enumValuesMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
-    (EnumValuesMissing(domain, name, values): SchemaError).raise[F, A]
+    NonEmptyList.one(EnumValuesMissing(domain, name, values): SchemaError).raise[F, A]
 
   def recordFieldsExist[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
-    (RecordFieldExists(domain, name, values): SchemaError).raise[F, A]
+    NonEmptyList.one(RecordFieldExists(domain, name, values): SchemaError).raise[F, A]
   def recordFieldsMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
-    (RecordFieldMissing(domain, name, values): SchemaError).raise[F, A]
+    NonEmptyList.one(RecordFieldMissing(domain, name, values): SchemaError).raise[F, A]
 }
