@@ -41,13 +41,15 @@ object Data {
       def withValues(newValues: ListSet[String]): Enum = copy(values = newValues)
     }
 
-    @Semi(Eq, Show) sealed abstract class Record(override val ref: DefinitionRef, val fields: Record.FieldSet)
+    type FieldSet = ListMap[String, Argument]
+    type RefSet   = ListSet[DefinitionRef]
+
+    @Semi(Eq, Show) sealed abstract class Record(override val ref: DefinitionRef, val fields: FieldSet)
         extends Definition(ref) {
 
-      def withFields(newFields: Record.FieldSet): Record
+      def withFields(newFields: FieldSet): Record
     }
     object Record {
-      type FieldSet = ListMap[String, Argument]
 
       // putting unapply directly into Record breaks type class derivation
       object Aux {
@@ -78,13 +80,11 @@ object Data {
       }
     }
 
-    @Semi(Eq, ShowPretty) final case class Service(override val ref: DefinitionRef,
-                                                   input:            ListSet[DefinitionRef],
-                                                   output:           ListSet[DefinitionRef])
+    @Semi(Eq, ShowPretty) final case class Service(override val ref: DefinitionRef, input: RefSet, output: RefSet)
         extends Definition(ref)
-    @Semi(Eq, ShowPretty) final case class Publisher(override val ref: DefinitionRef, events: ListSet[DefinitionRef])
+    @Semi(Eq, ShowPretty) final case class Publisher(override val ref: DefinitionRef, events: RefSet)
         extends Definition(ref)
-    @Semi(Eq, ShowPretty) final case class Subscriber(override val ref: DefinitionRef, events: ListSet[DefinitionRef])
+    @Semi(Eq, ShowPretty) final case class Subscriber(override val ref: DefinitionRef, events: RefSet)
         extends Definition(ref)
   }
 }

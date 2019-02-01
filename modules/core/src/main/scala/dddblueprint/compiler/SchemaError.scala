@@ -32,6 +32,9 @@ object SchemaError {
   final case class RecordFieldExists(domain:  String, name: String, values: ListSet[String]) extends SchemaError
   final case class RecordFieldMissing(domain: String, name: String, values: ListSet[String]) extends SchemaError
 
+  final case class FieldDefinitionMissing(domain:    String, name: String, field:    String) extends SchemaError
+  final case class ArgumentDefinitionMissing(domain: String, name: String, argument: String) extends SchemaError
+
   def invalidRef[F[_]: SchemaErrorRaise, A](ref: UUID): F[A] =
     NonEmptyList.one(InvalidRef(ref): SchemaError).raise[F, A]
 
@@ -57,4 +60,9 @@ object SchemaError {
     NonEmptyList.one(RecordFieldExists(domain, name, values): SchemaError).raise[F, A]
   def recordFieldsMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
     NonEmptyList.one(RecordFieldMissing(domain, name, values): SchemaError).raise[F, A]
+
+  def fieldDefinitionMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, field: String): F[A] =
+    NonEmptyList.one(FieldDefinitionMissing(domain, name, field): SchemaError).raise[F, A]
+  def argumentDefinitionMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, argument: String): F[A] =
+    NonEmptyList.one(ArgumentDefinitionMissing(domain, name, argument): SchemaError).raise[F, A]
 }

@@ -37,7 +37,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
       } yield internalRef: output.Argument
   }
 
-  private def mapFields(fields: input.Data.Definition.FieldSet): F[output.Data.Definition.Record.FieldSet] =
+  private def mapFields(fields: input.Data.Definition.FieldSet): F[output.Data.Definition.FieldSet] =
     Traverse[ListMap[String, ?]].sequence[F, output.Argument](fields.map {
       case (k, v) => k -> mapArgument(v)
     })

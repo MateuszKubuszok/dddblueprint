@@ -35,6 +35,7 @@ object Data {
         extends Definition(ref)
 
     type FieldSet = ListMap[String, Argument]
+    type RefSet   = ListSet[DefinitionRef]
 
     @Semi(Eq, ShowPretty) sealed abstract class Record(override val ref: DefinitionRef) extends Definition(ref)
     object Record {
@@ -52,12 +53,12 @@ object Data {
     }
 
     @Semi(Eq, ShowPretty) final case class Service(override val ref: DefinitionRef,
-                                                   input:            ListSet[DefinitionRef],
-                                                   output:           ListSet[DefinitionRef])
+                                                   input:            RefSet, // TODO: FieldSet
+                                                   output:           RefSet)
         extends Definition(ref)
-    @Semi(Eq, ShowPretty) final case class Publisher(override val ref: DefinitionRef, events: ListSet[DefinitionRef])
+    @Semi(Eq, ShowPretty) final case class Publisher(override val ref: DefinitionRef, events: RefSet)
         extends Definition(ref)
-    @Semi(Eq, ShowPretty) final case class Subscriber(override val ref: DefinitionRef, events: ListSet[DefinitionRef])
+    @Semi(Eq, ShowPretty) final case class Subscriber(override val ref: DefinitionRef, events: RefSet)
         extends Definition(ref)
   }
 }
