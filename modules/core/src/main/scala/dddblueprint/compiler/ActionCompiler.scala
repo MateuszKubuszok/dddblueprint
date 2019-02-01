@@ -3,10 +3,11 @@ package compiler
 
 import cats.implicits._
 import cats.{ Monad, Traverse }
+import io.scalaland.pulp.Cached
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
-class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOperations: SnapshotOperations[F]) {
+@Cached class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOperations: SnapshotOperations[F]) {
 
   private def definitionExists(ref: input.DefinitionRef): F[output.DefinitionRef] =
     for {

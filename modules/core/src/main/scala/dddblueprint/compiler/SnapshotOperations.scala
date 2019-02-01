@@ -5,11 +5,12 @@ import cats.implicits._
 import cats.mtl.implicits._
 import cats.Monad
 import io.scalaland.chimney.dsl._
+import io.scalaland.pulp.Cached
 import monocle.macros.syntax.lens._
 
 import scala.collection.immutable.ListMap
 
-class SnapshotOperations[F[_]: Monad: SchemaErrorRaise: SnapshotState] {
+@Cached class SnapshotOperations[F[_]: Monad: SchemaErrorRaise: SnapshotState] {
 
   def getDomainRef(name: output.DomainName): F[Option[output.DomainRef]] =
     SnapshotState[F].inspect { _.namespaces.domains.find(_._2 === name).map(_._1) }

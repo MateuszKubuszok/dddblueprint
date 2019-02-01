@@ -29,6 +29,7 @@ object Dependencies {
   val catsMTL            = "org.typelevel"                %% "cats-mtl-core"             % "0.4.0"
   val catnip             = "io.scalaland"                 %% "catnip"                    % "0.5.1"
   val chimney            = "io.scalaland"                 %% "chimney"                   % "0.3.0"
+  val pulp               = "io.scalaland"                 %% "pulp"                      % "0.0.8"
   val monocle            = "com.github.julien-truffaut"   %% "monocle-core"              % monocleVersion
   val monocleMacro       = "com.github.julien-truffaut"   %% "monocle-macro"             % monocleVersion
   val shapeless          = "com.chuusai"                  %% "shapeless"                 % "2.3.3"
@@ -62,7 +63,7 @@ trait Dependencies {
 
   val mainDeps = Seq(
     // functional libraries
-    cats, catsMTL, catnip, chimney, monocle, monocleMacro, shapeless,
+    cats, catsMTL, catnip, chimney, monocle, monocleMacro, pulp, shapeless,
     // async
     monixExecution, monixEval,
     // config

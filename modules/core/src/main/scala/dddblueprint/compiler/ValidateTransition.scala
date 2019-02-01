@@ -3,8 +3,9 @@ package compiler
 
 import cats.Monad
 import cats.implicits._
+import io.scalaland.pulp.Cached
 
-class ValidateTransition[F[_]: Monad] {
+@Cached class ValidateTransition[F[_]: Monad] {
 
   // TODO: removed definitions - ensure not used?
   // TODO: removed enum values - ensure not used? - add required migrations defs

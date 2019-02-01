@@ -7,9 +7,12 @@ import cats.Monad
 import cats.data.Validated.{ Invalid, Valid }
 import cats.data.{ NonEmptyList, ValidatedNel }
 import dddblueprint.compiler.MigrationCompiler.Intermediate
+import io.scalaland.pulp.Cached
 
-class MigrationCompiler[F[_]: Monad: SnapshotState: SchemaErrorHandle](actionCompiler: ActionCompiler[F],
-                                                                       validateTransition: ValidateTransition[F]) {
+@Cached class MigrationCompiler[F[_]: Monad: SnapshotState: SchemaErrorHandle](
+  actionCompiler:     ActionCompiler[F],
+  validateTransition: ValidateTransition[F]
+) {
 
   def apply(migration: input.Migration): F[Unit] =
     for {
