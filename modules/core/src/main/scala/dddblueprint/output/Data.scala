@@ -80,7 +80,7 @@ object Data {
       }
     }
 
-    @Semi(Eq, ShowPretty) final case class Service(override val ref: DefinitionRef, input: RefSet, output: RefSet)
+    @Semi(Eq, ShowPretty) final case class Service(override val ref: DefinitionRef, input: FieldSet, output: RefSet)
         extends Definition(ref)
     @Semi(Eq, ShowPretty) final case class Publisher(override val ref: DefinitionRef, events: RefSet)
         extends Definition(ref)

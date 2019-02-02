@@ -111,7 +111,11 @@ import scala.collection.immutable.{ ListMap, ListSet }
     case input.Data.Definition.Service(ref, inputs, outputs) =>
       for {
         internalRef <- definitionNotExists(ref)
-        internalInput <- Traverse[ListSet].sequence[F, output.DefinitionRef](inputs.map(definitionExists))
+        internalInput <- Traverse[ListSet]
+          .sequence[F, (String, output.Argument)](inputs.to[ListSet].map {
+            case (k, v) => (k.pure[F], mapArgument(v)).mapN(_ -> _)
+          })
+          .map(set => ListMap(set.toSeq: _*))
         internalOutput <- Traverse[ListSet].sequence[F, output.DefinitionRef](outputs.map(definitionExists))
         _ <- snapshotOperations.setDefinition(internalRef,
                                               output.Data.Definition.Service(
