@@ -16,4 +16,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
 ) {
 
   def bumpVersion: Snapshot = copy(version = version + 1, manualMigrations = ListMap.empty)
+
+  lazy val definitions: ListMap[DefinitionRef, Data.Definition] =
+    domains.values.map(_.definitions).foldLeft(ListMap.empty[DefinitionRef, Data.Definition])(_ ++ _)
 }

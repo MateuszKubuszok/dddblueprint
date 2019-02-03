@@ -1,15 +1,17 @@
 package dddblueprint
 package compiler
 
-import cats.Monad
+import cats.Traverse
 import cats.data.NonEmptyList
+import cats.effect.Sync
 import cats.implicits._
 import cats.mtl.implicits._
 import io.scalaland.pulp.Cached
+import monocle.macros.syntax.lens._
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
-@Cached class ValidateTransition[F[_]: Monad: SchemaErrorRaise] {
+@Cached class ValidateTransition[F[_]: Sync: SnapshotState: SchemaErrorRaise] {
 
   private val argumentToRef: output.Argument => Option[output.DefinitionRef] = {
     case ref: output.DefinitionRef  => Some(ref)
@@ -28,12 +30,10 @@ import scala.collection.immutable.{ ListMap, ListSet }
   }
 
   def apply(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] =
-    for {
-      _ <- removedAreNotUsed(newVersion)
-      _ <- typesMatches(oldVersion, newVersion)
-      _ <- migrationsForEnums(oldVersion, newVersion)
-      _ <- migrationsForRecords(oldVersion, newVersion)
-    } yield ()
+    removedAreNotUsed(newVersion)
+      .map2(typesMatches(oldVersion, newVersion))(_ |+| _)
+      .map2(migrationsForEnums(oldVersion, newVersion))(_ |+| _)
+      .map2(migrationsForRecords(oldVersion, newVersion))(_ |+| _)
 
   private def findMissing(version:   output.Snapshot,
                           ref:       output.DefinitionRef,
@@ -47,11 +47,12 @@ import scala.collection.immutable.{ ListMap, ListSet }
     }
   }
 
+  // TODO: defer calculations below, it doesn't make much sense to run them in parallel otherwise
+
   // scalastyle:off cyclomatic.complexity
-  def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = {
-    val allDefinitions = newVersion.domains.to[ListSet].flatMap(_._2.definitions.to[ListSet])
-    val isDefined      = allDefinitions.map(_._1).contains _
-    allDefinitions.map(_._2).toList.flatMap {
+  def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
+    val isDefined = newVersion.definitions.keySet.contains _
+    newVersion.definitions.values.toList.flatMap {
       case output.Data.Definition.Record.Aux(ref, fields) =>
         findMissing(newVersion, ref, isDefined) {
           fields.map { case (n, a) => n -> argumentToRef(a) }.collect { case (f, Some(r)) => f -> r }
@@ -84,11 +85,11 @@ import scala.collection.immutable.{ ListMap, ListSet }
     }
   }
   // scalastyle:on
-  
-  def typesMatches(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] =
+
+  def typesMatches(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     (for {
-      (newRef, newDef) <- newVersion.domains.values.to[ListSet].flatMap(_.definitions.to[ListSet])
-      (oldRef, oldDef) <- oldVersion.domains.values.to[ListSet].flatMap(_.definitions.to[ListSet])
+      (newRef, newDef) <- newVersion.definitions.to[ListSet]
+      (oldRef, oldDef) <- oldVersion.definitions.to[ListSet]
       if oldRef === newRef
       (domain, name) = refToDomainAndName(newVersion, newRef)
       typeMismatch <- (oldDef, newDef) match {
@@ -123,12 +124,50 @@ import scala.collection.immutable.{ ListMap, ListSet }
       case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
       case _            => ().pure[F]
     }
+  }
 
-  // TODO: removed enum/enum values - add required migrations defs
-  def migrationsForEnums(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = {
-    oldVersion.hashCode()
-    newVersion.hashCode()
-    ().pure[F]
+  def migrationsForEnums(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
+    val enumsWithRemovedValues = for {
+      (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+        case (ref, enum: output.Data.Definition.Enum) => ref -> enum
+      }
+      (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+        case (ref, enum: output.Data.Definition.Enum) => ref -> enum
+      }
+      if oldRef === newRef && !oldDef.values.subsetOf(newDef.values)
+    } yield newRef
+
+    val dependencies = ListMap(
+      newVersion.definitions.values.collect {
+        case output.Data.Definition.Record.Aux(ref, fields) =>
+          ref -> fields.values.collect { case fieldRef: output.DefinitionRef => fieldRef }.to[ListSet]
+
+        case output.Data.Definition.Service(ref, inputs, outputs) =>
+          ref -> (inputs.values.collect { case fieldRef: output.DefinitionRef => fieldRef }.to[ListSet] ++ outputs)
+
+        case output.Data.Definition.Publisher(ref, events) =>
+          ref -> events
+
+        case output.Data.Definition.Subscriber(ref, events) =>
+          ref -> events
+      }.toSeq: _*
+    )
+
+    Traverse[ListSet]
+      .sequence(
+        dependencies
+          .collect {
+            case (ref, deps) if enumsWithRemovedValues.intersect(deps).nonEmpty =>
+              SnapshotState[F].modify { version =>
+                version.lens(_.manualMigrations).modify { migrations =>
+                  migrations.updated(ref,
+                                     migrations.getOrElse(ref, ListSet.empty) ++ enumsWithRemovedValues.intersect(deps))
+                }
+              }
+          }
+          .to[ListSet]
+      )
+      .map(_ => ())
   }
 
   // TODO: removed records/fields - add required migrations defs
