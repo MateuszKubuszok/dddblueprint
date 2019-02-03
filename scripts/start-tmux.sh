@@ -16,35 +16,35 @@ function initiate-tmux() {
   select-pane $MainW -R; send-to $MainW Enter;
   rename-window $MainW 'root';
 
-  CommonW=$TmuxSessionName:1
-  new-window-splitwh-setup $CommonW 'modules/common' 'Common';
-  select-pane $CommonW -L;
-  send-to $CommonW \
+  CoreW=$TmuxSessionName:1
+  new-window-splitwh-setup $CoreW 'modules/core' 'core';
+  select-pane $CoreW -L;
+  send-to $CoreW \
       '../..' Enter \
       'sbt' Enter \
-      'project common' Enter \
+      'project core' Enter \
   ;
-  select-pane $CommonW -R;
+  select-pane $CoreW -R;
 
-  FirstW=$TmuxSessionName:2
-  new-window-splitwh-setup $FirstW 'modules/first' 'First';
-  select-pane $FirstW -L;
-  send-to $FirstW \
+  MonixW=$TmuxSessionName:2
+  new-window-splitwh-setup $MonixW 'modules/monix' 'monix';
+  select-pane $MonixW -L;
+  send-to $MonixW \
       '../..' Enter \
       'sbt' Enter \
-      'project first' Enter \
+      'project monix' Enter \
   ;
-  select-pane $FirstW -R;
+  select-pane $MonixW -R;
 
-  SecondW=$TmuxSessionName:4
-  new-window-splitwh-setup $SecondW 'modules/second' 'Second';
-  select-pane $SecondW -L;
-  send-to $SecondW \
+  LawsW=$TmuxSessionName:4
+  new-window-splitwh-setup $LawsW 'modules/laws' 'laws';
+  select-pane $LawsW -L;
+  send-to $LawsW \
       '../..' Enter \
       'sbt' Enter \
-      'project second' Enter \
+      'project laws' Enter \
   ;
-  select-pane $SecondW -R;
+  select-pane $LawsW -R;
 
   select-window $MainW;
 }

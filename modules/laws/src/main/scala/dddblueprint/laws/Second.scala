@@ -1,11 +1,11 @@
-package dddblueprint.first
+package dddblueprint.laws
 
 import com.typesafe.scalalogging.Logger
-import pureconfig._
+import pureconfig.loadConfig
 
-object First {
+object Second {
 
-  val config = loadConfig[FirstConfig]("first").getOrElse(FirstConfig("undefined"))
+  val config = loadConfig[SecondConfig]("second").getOrElse(SecondConfig("undefined"))
 
   val logger = Logger(getClass)
 

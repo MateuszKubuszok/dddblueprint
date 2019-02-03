@@ -9,11 +9,18 @@ import cats.derived.ShowPretty
 import cats.implicits._
 import cats.mtl.implicits._
 import io.scalaland.catnip.Semi
+import monocle.macros._
+import monocle.Prism
 
 import scala.collection.immutable.ListSet
 
 @Semi(Eq, ShowPretty) sealed trait SchemaError extends ADT
 object SchemaError {
+  @Semi(Eq, ShowPretty) final case class Wrapper(errors: NonEmptyList[SchemaError]) extends RuntimeException
+  object Wrapper {
+    implicit val prism: Prism[Throwable, Wrapper] = GenPrism[Throwable, Wrapper]
+  }
+
   final case class InvalidRef(ref: UUID) extends SchemaError
 
   final case class DomainMissing(domain: String) extends SchemaError

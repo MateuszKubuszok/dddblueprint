@@ -32,7 +32,7 @@ import io.scalaland.pulp.Cached
         } yield Intermediate(toProcess, newSnapshot, newState).asLeft[Unit]).handle[NonEmptyList[SchemaError]] {
           errors =>
             // snapshot compilation as a whole would fail but this way we can gather more errors at once
-            Intermediate(toProcess, lastValid, (currentState, errors.invalid[Unit]).mapN((_, _) => ())).asLeft[Unit]
+            Intermediate(toProcess, lastValid, (currentState, errors.invalid[Unit]).mapN(_ |+| _)).asLeft[Unit]
         }
 
       case Intermediate(Nil, _, Valid(_)) =>

@@ -12,10 +12,11 @@ object Dependencies {
   val scalaFmtVersion = "1.5.1"
 
   // libraries versions
-  val catsVersion     = "1.6.0-RC1"
-  val monixVersion    = "3.0.0-RC2"
-  val monocleVersion  = "1.6.0-M1"
-  val specs2Version   = "4.4.1"
+  val catsVersion       = "1.6.0"
+  val catsEffectVersion = "1.2.0"
+  val monixVersion      = "3.0.0-RC2"
+  val monocleVersion    = "1.6.0-M1"
+  val specs2Version     = "4.4.1"
 
   // resolvers
   val resolvers = Seq(
@@ -25,6 +26,7 @@ object Dependencies {
 
   // functional libraries
   val cats               = "org.typelevel"                %% "cats-core"                 % catsVersion
+  val catsEffect         = "org.typelevel"                %% "cats-effect"               % catsEffectVersion
   val catsLaws           = "org.typelevel"                %% "cats-laws"                 % catsVersion
   val catsMTL            = "org.typelevel"                %% "cats-mtl-core"             % "0.4.0"
   val catnip             = "io.scalaland"                 %% "catnip"                    % "0.5.1"
@@ -63,9 +65,7 @@ trait Dependencies {
 
   val mainDeps = Seq(
     // functional libraries
-    cats, catsMTL, catnip, chimney, monocle, monocleMacro, pulp, shapeless,
-    // async
-    monixExecution, monixEval,
+    cats, catsEffect, catsMTL, catnip, chimney, monocle, monocleMacro, pulp, shapeless,
     // config
     scopt, scalaConfig, pureConfig,
     // logging

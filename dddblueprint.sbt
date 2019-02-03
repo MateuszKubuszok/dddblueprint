@@ -5,39 +5,38 @@ lazy val root = project.root
   .setName("dddblueprint")
   .setDescription("Build of dddblueprint")
   .configureRoot
-  .aggregate(core, first, second)
+  .aggregate(core, monix, laws)
 
 lazy val core = project.from("core")
   .setName("dddblueprint-common")
   .setDescription("Schema for DDD projects")
   .setInitialImport("_")
   .configureModule
-  .configureTests()
   .settings(Compile / resourceGenerators += task[Seq[File]] {
     val file = (Compile / resourceManaged).value / "dddblueprint-version.conf"
     IO.write(file, s"version=${version.value}")
     Seq(file)
   })
 
-lazy val first = project.from("first")
-  .setName("first")
+lazy val monix = project.from("monix")
+  .setName("dddblueprint-monix")
   .setDescription("First project")
-  .setInitialImport("first._")
+  .setInitialImport("monix._")
+  .configureModule
+  .compileAndTestDependsOn(core)
+  .settings(
+    libraryDependencies ++= Seq(Dependencies.monixEval, Dependencies.monixExecution)
+  )
+
+lazy val laws = project.from("laws")
+  .setName("laws")
+  .setDescription("dddblueprint-laws")
+  .setInitialImport("laws._")
   .configureModule
   .configureTests()
-  .compileAndTestDependsOn(core)
-  .configureRun("dddblueprint.first.First")
+  .dependsOn(core % "compile->compile", monix % "test->compile")
 
-lazy val second = project.from("second")
-  .setName("second")
-  .setDescription("Second project")
-  .setInitialImport("second._")
-  .configureModule
-  .configureTests()
-  .compileAndTestDependsOn(core)
-  .configureRun("dddblueprint.second.Second")
-
-addCommandAlias("fullTest", ";test;fun:test;it:test;scalastyle")
+addCommandAlias("fullTest", ";test;scalastyle")
 
 addCommandAlias("fullCoverageTest", ";coverage;test;coverageReport;coverageAggregate;scalastyle")
 
