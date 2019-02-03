@@ -7,7 +7,7 @@ import cats.implicits._
 import cats.mtl.implicits._
 import io.scalaland.pulp.Cached
 
-import scala.collection.immutable.ListSet
+import scala.collection.immutable.{ ListMap, ListSet }
 
 @Cached class ValidateTransition[F[_]: Monad: SchemaErrorRaise] {
 
@@ -37,24 +37,51 @@ import scala.collection.immutable.ListSet
     domainName -> name
   }
 
+  def findMissing(version: output.Snapshot, ref: output.DefinitionRef, isDefined: output.DefinitionRef => Boolean)(
+    usedRefs:              ListMap[String, output.DefinitionRef]
+  ): List[SchemaError] = {
+    val (domain, name) = refToDomainAndName(version, ref)
+    val refNames       = usedRefs.map(_.swap)
+    usedRefs.values.filterNot(isDefined).toList.map { refWithoutDef =>
+      SchemaError.FieldDefinitionMissing(domain = domain, name = name, field = refNames(refWithoutDef)): SchemaError
+    }
+  }
+
+  // scalastyle:off cyclomatic.complexity
   def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = {
     val allDefinitions = newVersion.domains.to[ListSet].flatMap(_._2.definitions.to[ListSet])
     val isDefined      = allDefinitions.map(_._1).contains _
     allDefinitions.map(_._2).toList.flatMap {
-      case _: output.Data.Definition.Enum => List.empty[SchemaError]
-
       case output.Data.Definition.Record.Aux(ref, fields) =>
-        val (domain, name) = refToDomainAndName(newVersion, ref)
-        val usedRefs       = fields.mapValues(argumentToRef).collect { case (f, Some(r)) => f -> r }
-        val refNames       = usedRefs.map(_.swap)
-        usedRefs.values.filterNot(isDefined).toList.map { refWithoutDef =>
-          SchemaError.FieldDefinitionMissing(domain = domain, name = name, field = refNames(refWithoutDef)): SchemaError
+        findMissing(newVersion, ref, isDefined) {
+          fields.map { case (n, a) => n -> argumentToRef(a) }.collect { case (f, Some(r)) => f -> r }
         }
 
-      case _ => List.empty[SchemaError] // TODO: services, etc
+      case output.Data.Definition.Service(ref, inputs, outputs) =>
+        findMissing(newVersion, ref, isDefined) {
+          // TODO: output # -> entity name
+          inputs.map { case (n, a) => n -> argumentToRef(a) }.collect { case (f, Some(r)) => f -> r } ++ ListMap(
+            outputs.zipWithIndex.map { case (r, i) => s"output $i" -> r }.toSeq: _*
+          )
+        }
+
+      case output.Data.Definition.Publisher(ref, events) =>
+        findMissing(newVersion, ref, isDefined) {
+          // TODO: event # -> entity name
+          ListMap(events.zipWithIndex.map { case (r, i) => s"event $i" -> r }.toSeq: _*)
+        }
+
+      case output.Data.Definition.Subscriber(ref, events) =>
+        findMissing(newVersion, ref, isDefined) {
+          // TODO: event # -> entity name
+          ListMap(events.zipWithIndex.map { case (r, i) => s"event $i" -> r }.toSeq: _*)
+        }
+
+      case _ => List.empty[SchemaError]
     } match {
       case head :: tail => NonEmptyList(head, tail).raise[F, Unit]
       case _            => ().pure[F]
     }
   }
+  // scalastyle:on
 }
