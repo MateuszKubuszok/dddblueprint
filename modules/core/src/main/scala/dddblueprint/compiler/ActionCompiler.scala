@@ -194,7 +194,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
       internalRef <- definitionExists(ref)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
-        case Some(record @ output.Data.Definition.Record.Aux(_, oldFields)) =>
+        case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
           mapFields(newFields).flatMap { internalNewFields =>
             val common = oldFields.keys.to[ListSet].intersect(newFields.keys.to[ListSet])
             if (common.isEmpty) record.withFields(oldFields ++ internalNewFields).pure[F]
@@ -214,7 +214,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
       internalRef <- definitionExists(ref)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
-        case Some(record @ output.Data.Definition.Record.Aux(_, oldFields)) =>
+        case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
           if (removedFields.subsetOf(oldFields.keys.to[ListSet])) {
             record.withFields(oldFields.filter { case (k, _) => !removedFields.contains(k) }).pure[F]
           } else {
