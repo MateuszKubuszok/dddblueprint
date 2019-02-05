@@ -34,6 +34,7 @@ object Data {
                                                 `type`:           Enumerable)
         extends Definition(ref)
 
+    // TODO: turn these into a AnyVals with domain methods
     type FieldSet = ListMap[String, Argument]
     type RefSet   = ListSet[DefinitionRef]
 
