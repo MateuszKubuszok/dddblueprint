@@ -1,6 +1,7 @@
 package dddblueprint
 package compiler
 
+import io.scalaland.pulp.Provider
 import monocle.macros.syntax.lens._
 import org.specs2.specification.Scope
 
@@ -63,7 +64,6 @@ class ActonCompilerSpec extends CompilerSpec {
   }
 
   private trait Fixture extends Scope {
-    val SnapshotOperations = new SnapshotOperations[F]
-    val ActionCompiler     = new ActionCompiler[F](SnapshotOperations)
+    val ActionCompiler = Provider.get[ActionCompiler[F]]
   }
 }
