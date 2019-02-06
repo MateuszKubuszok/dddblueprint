@@ -6,8 +6,24 @@ import io.scalaland.catnip.Semi
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
-@Semi(Eq, ShowPretty) sealed trait Argument extends ADT
-@SuppressWarnings(Array("org.wartremover.warts.Equals")) object Argument
+sealed trait Argument extends ADT
+object Argument {
+
+  // we aren't relying on derivation here as it leads to scala.UninitializedFieldError because of recursion
+
+  implicit val eq: Eq[Argument] = (a: Argument, b: Argument) =>
+    (a, b) match {
+      case (x: DefinitionRef, y:                DefinitionRef)                => x === y
+      case (x: Data.Primitive, y:               Data.Primitive)               => x === y
+      case (x: Data.Definition.Record.Tuple, y: Data.Definition.Record.Tuple) => x === y
+      case _ => false
+  }
+  implicit val show: ShowPretty[Argument] = {
+    case x: DefinitionRef                => implicitly[ShowPretty[DefinitionRef]].showLines(x)
+    case x: Data.Primitive               => implicitly[ShowPretty[Data.Primitive]].showLines(x)
+    case x: Data.Definition.Record.Tuple => implicitly[ShowPretty[Data.Definition.Record.Tuple]].showLines(x)
+  }
+}
 
 @Semi(Eq, ShowPretty) final case class DefinitionRef(domain: DomainRef, name: String) extends Argument
 
@@ -25,6 +41,9 @@ object Data {
   case object Float extends Primitive with Enumerable
   case object Double extends Primitive with Enumerable
   case object String extends Primitive with Enumerable
+
+  object Primitive
+  object Enumerable
 
   @Semi(Eq, ShowPretty) sealed abstract class Definition(val ref: DefinitionRef) extends Data
   object Definition {

@@ -33,11 +33,9 @@ lazy val laws = project.from("laws")
   .setDescription("dddblueprint-laws")
   .setInitialImport("laws._")
   .configureModule
-  .configureTests()
+  .configureTests(requiresFork = true)
   .dependsOn(core % "compile->compile", monix % "test->compile")
 
 addCommandAlias("fullTest", ";test;scalastyle")
-
 addCommandAlias("fullCoverageTest", ";coverage;test;coverageReport;coverageAggregate;scalastyle")
-
 addCommandAlias("relock", ";unlock;reload;update;lock")
