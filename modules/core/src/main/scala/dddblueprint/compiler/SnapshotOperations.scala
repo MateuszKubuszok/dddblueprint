@@ -8,8 +8,6 @@ import io.scalaland.chimney.dsl._
 import io.scalaland.pulp.Cached
 import monocle.macros.syntax.lens._
 
-import scala.collection.immutable.ListMap
-
 @Cached class SnapshotOperations[F[_]: Monad: SchemaErrorRaise: SnapshotState] {
 
   def getDomainRef(name: output.DomainName): F[Option[output.DomainRef]] =
@@ -67,16 +65,7 @@ import scala.collection.immutable.ListMap
         case Some(name) => name.pure[F]
         case None       => SchemaError.invalidRef[F, output.DefinitionName](ref.id)
       }
-      _ <- oldVersion
-        .lens(_.domains)
-        .modify { domains =>
-          val newDefinitions = domains.get(name.domain) match {
-            case Some(definitions) => definitions.lens(_.definitions).modify(_.updated(ref, body))
-            case None              => output.Definitions(definitions = ListMap(ref -> body))
-          }
-          domains.updated(name.domain, newDefinitions)
-        }
-        .set[F]
+      _ <- oldVersion.withDefinition(name.domain, ref, body).set[F]
     } yield ()
   def removeDefinition(ref: output.DefinitionRef): F[Unit] =
     for {
@@ -85,16 +74,7 @@ import scala.collection.immutable.ListMap
         case Some(name) => name.pure[F]
         case None       => SchemaError.invalidRef[F, output.DefinitionName](ref.id)
       }
-      _ <- oldVersion
-        .lens(_.domains)
-        .modify { domains =>
-          val newDefinitions = domains.get(name.domain) match {
-            case Some(definitions) => definitions.lens(_.definitions).modify(_ - ref)
-            case None              => output.Definitions()
-          }
-          domains.updated(name.domain, newDefinitions)
-        }
-        .set[F]
+      _ <- oldVersion.withoutDefinition(name.domain, ref).set[F]
     } yield ()
 
   def translateDomainRef(ref: input.DomainRef): F[output.DomainName] =

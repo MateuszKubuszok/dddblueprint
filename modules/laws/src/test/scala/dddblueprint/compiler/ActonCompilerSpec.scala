@@ -19,7 +19,6 @@ class ActonCompilerSpec extends CompilerSpec {
       }
     }
 
-    // TODO: in future ensure tuples are only used as arguments
     "correctly compile tuple definition" in new Fixture {
       val definition       = input.Fixtures.Data.Definition.Record.Tuple1
       val createDefinition = input.Action.CreateDefinition(definition)
@@ -59,6 +58,28 @@ class ActonCompilerSpec extends CompilerSpec {
       new TestSnapshot(ActionCompiler(createDefinition))() {
         val internalRef = definitionRefIso.get(definition.ref)
         snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Record.Event1.lens(_.ref).set(internalRef)
+      }
+    }
+  }
+
+  "ActionCompiler on RemoveDefinition" should {
+
+    "correctly remove definition" in new Fixture {
+      val snapshot = output
+        .Snapshot()
+        .lens(_.namespaces.domains)
+        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
+        .lens(_.namespaces.definitions)
+        .modify(
+          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
+                                                                 input.Fixtures.Enum1Ref.name))
+        )
+        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Enum1Ref, output.Fixtures.Data.Definition.Enum1)
+      val removeDefinition = input.Action.RemoveDefinition(input.Fixtures.Enum1Ref)
+
+      new TestSnapshot(ActionCompiler(removeDefinition))(snapshot) {
+        val internalRef = definitionRefIso.get(removeDefinition.definition)
+        snapshot.definitions.get(internalRef) === None
       }
     }
   }

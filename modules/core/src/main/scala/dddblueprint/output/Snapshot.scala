@@ -4,6 +4,9 @@ package output
 import cats.Eq
 import cats.derived.ShowPretty
 import cats.implicits._
+import monocle.function.Index
+import monocle.macros.syntax.lens._
+import monocle.macros.GenLens
 import io.scalaland.catnip.Semi
 
 import scala.collection.immutable.{ ListMap, ListSet }
@@ -19,4 +22,32 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
   lazy val definitions: ListMap[DefinitionRef, Data.Definition] =
     domains.values.map(_.definitions).foldLeft(ListMap.empty[DefinitionRef, Data.Definition])(_ ++ _)
+
+  private def domainIndex(ref: output.DomainRef) =
+    Index.fromAt[ListMap[output.DomainRef, output.Definitions], output.DomainRef, output.Definitions].index(ref)
+
+  private val intoDefinitions =
+    GenLens[output.Definitions](_.definitions)
+
+  def withDefinition(domainRef: DomainRef, definitionRef: DefinitionRef, body: Data.Definition): Snapshot =
+    this
+    // ensure domain key exists
+      .lens(_.domains)
+      .modify(ListMap(domainRef -> Definitions()) ++ _)
+      // ensure definition key exists
+      .lens(_.domains)
+      .composeOptional(domainIndex(domainRef))
+      .composeLens(intoDefinitions)
+      .modify(_.updated(definitionRef, body))
+
+  def withoutDefinition(domainRef: DomainRef, definitionRef: DefinitionRef): Snapshot =
+    this
+    // ensure domain key exists
+      .lens(_.domains)
+      .modify(ListMap(domainRef -> Definitions()) ++ _)
+      // remove definition key
+      .lens(_.domains)
+      .composeOptional(domainIndex(domainRef))
+      .composeLens(intoDefinitions)
+      .modify(_ - definitionRef)
 }

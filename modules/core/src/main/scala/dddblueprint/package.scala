@@ -1,12 +1,20 @@
 import cats.{ Applicative, Eq, Eval, Show, Traverse }
 import cats.derived.ShowPretty
 import cats.implicits._
+import monocle.function._
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
 package object dddblueprint {
 
   // missing type classes for our own convenience
+
+  implicit def atListMap[K, V]: At[ListMap[K, V], K, Option[V]] =
+    At[ListMap[K, V], K, Option[V]] { k: K => lm: ListMap[K, V] =>
+      lm.get(k)
+    } { k: K => vOpt: Option[V] => lm: ListMap[K, V] =>
+      vOpt.map(v => lm + (k -> v)).getOrElse(lm - k)
+    }
 
   private[dddblueprint] implicit def eqListMap[K, V](implicit eqMap: Eq[Map[K, V]]): Eq[ListMap[K, V]] =
     (a, b) => eqMap.eqv(a, b)
