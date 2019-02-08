@@ -85,6 +85,24 @@ class ActonCompilerSpec extends CompilerSpec {
         snapshot.definitions.get(internalRef) === None
       }
     }
+
+    "raise error if definition doesn't exist" in new Fixture {
+      val snapshot = output
+        .Snapshot()
+        .lens(_.namespaces.domains)
+        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
+      val removeDefinition = input.Action.RemoveDefinition(input.Fixtures.Enum1Ref)
+
+      new TestSnapshot(ActionCompiler(removeDefinition))(snapshot) {
+        snapshot must throwA(
+          SchemaError.Wrapper(
+            NonEmptyList.of(
+              SchemaError.DefinitionMissing(input.Fixtures.Domain1Ref.name, input.Fixtures.Enum1Ref.name)
+            )
+          )
+        )
+      }
+    }
   }
 
   "ActionCompiler on AddEnumValues" should {
@@ -104,7 +122,6 @@ class ActonCompilerSpec extends CompilerSpec {
 
       new TestSnapshot(ActionCompiler(addEnumValues))(snapshot) {
         val internalRef = definitionRefIso.get(addEnumValues.definition)
-        a
         snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Enum1
           .withValues(ListSet("a", "b", "c", "d"))
       }
@@ -150,6 +167,74 @@ class ActonCompilerSpec extends CompilerSpec {
       val addEnumValues = input.Action.AddEnumValues(input.Fixtures.Enum1Ref, ListSet("c", "d"))
 
       new TestSnapshot(ActionCompiler(addEnumValues))(snapshot) {
+        snapshot must throwA(
+          SchemaError.Wrapper(
+            NonEmptyList.of(
+              SchemaError.DefinitionMissing(input.Fixtures.Domain1Ref.name, input.Fixtures.Enum1Ref.name)
+            )
+          )
+        )
+      }
+    }
+  }
+
+  "ActionCompiler on RemoveEnumValues" should {
+
+    "remove values if enum exists and all of the values existed before" in new Fixture {
+      val snapshot = output
+        .Snapshot()
+        .lens(_.namespaces.domains)
+        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
+        .lens(_.namespaces.definitions)
+        .modify(
+          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
+                                                                 input.Fixtures.Enum1Ref.name))
+        )
+        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Enum1Ref, output.Fixtures.Data.Definition.Enum1)
+      val removeEnumValues = input.Action.RemoveEnumValues(input.Fixtures.Enum1Ref, ListSet("a"))
+
+      new TestSnapshot(ActionCompiler(removeEnumValues))(snapshot) {
+        val internalRef = definitionRefIso.get(removeEnumValues.definition)
+        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Enum1.withValues(ListSet("b"))
+      }
+    }
+
+    "raise error if enum exists and some the values are missing" in new Fixture {
+      val snapshot = output
+        .Snapshot()
+        .lens(_.namespaces.domains)
+        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
+        .lens(_.namespaces.definitions)
+        .modify(
+          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
+                                                                 input.Fixtures.Enum1Ref.name))
+        )
+        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Enum1Ref, output.Fixtures.Data.Definition.Enum1)
+      val removeEnumValues = input.Action.RemoveEnumValues(input.Fixtures.Enum1Ref, ListSet("a", "c"))
+
+      new TestSnapshot(ActionCompiler(removeEnumValues))(snapshot) {
+        snapshot must throwA(
+          SchemaError.Wrapper(
+            NonEmptyList.of(
+              SchemaError.EnumValuesMissing(
+                input.Fixtures.Domain1Ref.name,
+                input.Fixtures.Enum1Ref.name,
+                ListSet("c")
+              )
+            )
+          )
+        )
+      }
+    }
+
+    "raise error if enum doesn't exist" in new Fixture {
+      val snapshot = output
+        .Snapshot()
+        .lens(_.namespaces.domains)
+        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
+      val removeEnumValues = input.Action.RemoveEnumValues(input.Fixtures.Enum1Ref, ListSet("a"))
+
+      new TestSnapshot(ActionCompiler(removeEnumValues))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
