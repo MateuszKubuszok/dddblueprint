@@ -23,6 +23,11 @@ import scala.collection.immutable.{ ListMap, ListSet }
   lazy val definitions: ListMap[DefinitionRef, Data.Definition] =
     domains.values.map(_.definitions).foldLeft(ListMap.empty[DefinitionRef, Data.Definition])(_ ++ _)
 
+  def findDomain(ref: output.DefinitionRef): Option[DomainRef] =
+    domains.mapValues(_.definitions.keys.toSet).collectFirst {
+      case (domainRef, definitionRefs) if definitionRefs.contains(ref) => domainRef
+    }
+
   private def domainIndex(ref: output.DomainRef) =
     Index.fromAt[ListMap[output.DomainRef, output.Definitions], output.DomainRef, output.Definitions].index(ref)
 

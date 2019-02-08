@@ -12,9 +12,11 @@ trait CompilerSpec extends Specification {
   protected implicit val snapshotState:     SnapshotState[F]     = CompilerSpec.implicits._2
   protected implicit val schemaErrorHandle: SchemaErrorHandle[F] = CompilerSpec.implicits._3
 
-  abstract class TestSnapshot[A](result: F[A])(base: output.Snapshot = output.Snapshot()) extends {
-    val (snapshot, a) = result.run(base).apply()
-  } with RefIso(snapshot)
+  abstract class TestSnapshot[A](result: F[A])(base: output.Snapshot = output.Snapshot()) extends RefIso {
+    private lazy val snapshotA = result.run(base).apply()
+    def snapshot: output.Snapshot = snapshotA._1
+    def a:        A               = snapshotA._2
+  }
 }
 
 object CompilerSpec {

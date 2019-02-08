@@ -157,12 +157,16 @@ import scala.collection.immutable.{ ListMap, ListSet }
   lazy val addEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, newValues) =>
     for {
       internalRef <- definitionExists(ref)
+      domainRef <- snapshotOperations.definitionToDomain(internalRef)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(enum @ output.Data.Definition.Enum(_, oldValues, _)) =>
           val common = oldValues.intersect(newValues)
-          if (common.isEmpty) enum.withValues(oldValues ++ newValues).pure[F]
-          else SchemaError.enumValuesExist[F, output.Data.Definition.Enum](ref.domain.name, ref.name, common)
+          if (common.isEmpty) {
+            SnapshotState[F].modify(_.withDefinition(domainRef, internalRef, enum.withValues(oldValues ++ newValues)))
+          } else {
+            SchemaError.enumValuesExist[F, output.Data.Definition.Enum](ref.domain.name, ref.name, common)
+          }
         case Some(other) =>
           SchemaError.definitionTypeMismatch[F, output.Data.Definition.Enum](ref.domain.name, ref.name, "enum", other)
         case None =>
@@ -173,11 +177,14 @@ import scala.collection.immutable.{ ListMap, ListSet }
   lazy val removeEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, removedValues) =>
     for {
       internalRef <- definitionExists(ref)
+      domainRef <- snapshotOperations.definitionToDomain(internalRef)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(enum @ output.Data.Definition.Enum(_, oldValues, _)) =>
           if (removedValues.subsetOf(oldValues)) {
-            enum.withValues(oldValues -- removedValues).pure[F]
+            SnapshotState[F].modify(
+              _.withDefinition(domainRef, internalRef, enum.withValues(oldValues -- removedValues))
+            )
           } else {
             SchemaError
               .enumValuesMissing[F, output.Data.Definition.Enum](ref.domain.name, ref.name, removedValues -- oldValues)

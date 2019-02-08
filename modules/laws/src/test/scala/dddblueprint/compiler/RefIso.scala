@@ -3,21 +3,23 @@ package compiler
 
 import monocle.Iso
 
-class RefIso(snapshot: output.Snapshot) {
+trait RefIso {
 
-  private val domainRefOutIn = snapshot.namespaces.domains.mapValues {
+  def snapshot: output.Snapshot
+
+  private lazy val domainRefOutIn = snapshot.namespaces.domains.mapValues {
     case output.DomainName(name) => input.DomainRef(name)
   }
-  private val domainRefInOut = domainRefOutIn.map(_.swap)
+  private lazy val domainRefInOut = domainRefOutIn.map(_.swap)
 
-  implicit val domainRefIso: Iso[input.DomainRef, output.DomainRef] =
+  implicit lazy val domainRefIso: Iso[input.DomainRef, output.DomainRef] =
     Iso[input.DomainRef, output.DomainRef](domainRefInOut)(domainRefOutIn)
 
-  private val definitionRefOutIn = snapshot.namespaces.definitions.mapValues {
+  private lazy val definitionRefOutIn = snapshot.namespaces.definitions.mapValues {
     case output.DefinitionName(domainRef, name) => input.DefinitionRef(domainRefOutIn(domainRef), name)
   }
-  private val definitionRefInOut = definitionRefOutIn.map(_.swap)
+  private lazy val definitionRefInOut = definitionRefOutIn.map(_.swap)
 
-  implicit val definitionRefIso: Iso[input.DefinitionRef, output.DefinitionRef] =
+  implicit lazy val definitionRefIso: Iso[input.DefinitionRef, output.DefinitionRef] =
     Iso[input.DefinitionRef, output.DefinitionRef](definitionRefInOut)(definitionRefOutIn)
 }
