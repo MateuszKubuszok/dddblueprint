@@ -37,8 +37,8 @@ object SchemaError {
   final case class EnumValuesMissing(domain: String, name: String, values:  ListSet[String]) extends SchemaError
   final case class EnumTypeMismatch(domain:  String, name: String, oldType: String, newType: String) extends SchemaError
 
-  final case class RecordFieldExists(domain:  String, name: String, values: ListSet[String]) extends SchemaError
-  final case class RecordFieldMissing(domain: String, name: String, values: ListSet[String]) extends SchemaError
+  final case class RecordFieldsExist(domain:   String, name: String, values: ListSet[String]) extends SchemaError
+  final case class RecordFieldsMissing(domain: String, name: String, values: ListSet[String]) extends SchemaError
 
   final case class FieldDefinitionMissing(domain:    String, name: String, field:    String) extends SchemaError
   final case class ArgumentDefinitionMissing(domain: String, name: String, argument: String) extends SchemaError
@@ -70,9 +70,9 @@ object SchemaError {
     NonEmptyList.one(EnumTypeMismatch(domain, name, oldType, newType): SchemaError).raise[F, A]
 
   def recordFieldsExist[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
-    NonEmptyList.one(RecordFieldExists(domain, name, values): SchemaError).raise[F, A]
+    NonEmptyList.one(RecordFieldsExist(domain, name, values): SchemaError).raise[F, A]
   def recordFieldsMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
-    NonEmptyList.one(RecordFieldMissing(domain, name, values): SchemaError).raise[F, A]
+    NonEmptyList.one(RecordFieldsMissing(domain, name, values): SchemaError).raise[F, A]
 
   def fieldDefinitionMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, field: String): F[A] =
     NonEmptyList.one(FieldDefinitionMissing(domain, name, field): SchemaError).raise[F, A]

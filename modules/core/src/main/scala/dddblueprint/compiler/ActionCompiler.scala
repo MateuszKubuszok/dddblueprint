@@ -165,10 +165,10 @@ import scala.collection.immutable.{ ListMap, ListSet }
           if (common.isEmpty) {
             SnapshotState[F].modify(_.withDefinition(domainRef, internalRef, enum.withValues(oldValues ++ newValues)))
           } else {
-            SchemaError.enumValuesExist[F, output.Data.Definition.Enum](ref.domain.name, ref.name, common)
+            SchemaError.enumValuesExist(ref.domain.name, ref.name, common)
           }
         case Some(other) =>
-          SchemaError.definitionTypeMismatch[F, output.Data.Definition.Enum](ref.domain.name, ref.name, "enum", other)
+          SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "enum", other)
         case None =>
           SchemaError.definitionMissing(ref.domain.name, ref.name)
       }
@@ -186,11 +186,10 @@ import scala.collection.immutable.{ ListMap, ListSet }
               _.withDefinition(domainRef, internalRef, enum.withValues(oldValues -- removedValues))
             )
           } else {
-            SchemaError
-              .enumValuesMissing[F, output.Data.Definition.Enum](ref.domain.name, ref.name, removedValues -- oldValues)
+            SchemaError.enumValuesMissing(ref.domain.name, ref.name, removedValues -- oldValues)
           }
         case Some(other) =>
-          SchemaError.definitionTypeMismatch[F, output.Data.Definition.Enum](ref.domain.name, ref.name, "enum", other)
+          SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "enum", other)
         case None =>
           SchemaError.definitionMissing(ref.domain.name, ref.name)
       }
@@ -199,18 +198,22 @@ import scala.collection.immutable.{ ListMap, ListSet }
   lazy val addRecordFields: (input.DefinitionRef, input.Data.Definition.FieldSet) => F[Unit] = (ref, newFields) =>
     for {
       internalRef <- definitionExists(ref)
+      domainRef <- snapshotOperations.definitionToDomain(internalRef)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
           mapFields(newFields).flatMap { internalNewFields =>
             val common = oldFields.keys.to[ListSet].intersect(newFields.keys.to[ListSet])
-            if (common.isEmpty) record.withFields(oldFields ++ internalNewFields).pure[F]
-            else SchemaError.recordFieldsExist[F, output.Data.Definition.Record](ref.domain.name, ref.name, common)
+            if (common.isEmpty) {
+              SnapshotState[F].modify(
+                _.withDefinition(domainRef, internalRef, record.withFields(oldFields ++ internalNewFields))
+              )
+            } else {
+              SchemaError.recordFieldsExist(ref.domain.name, ref.name, common)
+            }: F[Unit]
           }
-
         case Some(other) =>
-          SchemaError
-            .definitionTypeMismatch[F, output.Data.Definition.Record](ref.domain.name, ref.name, "record", other)
+          SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "record", other)
         case None =>
           SchemaError.definitionMissing(ref.domain.name, ref.name)
       }
@@ -219,19 +222,21 @@ import scala.collection.immutable.{ ListMap, ListSet }
   lazy val removeRecordFields: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, removedFields) =>
     for {
       internalRef <- definitionExists(ref)
+      domainRef <- snapshotOperations.definitionToDomain(internalRef)
       currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
           if (removedFields.subsetOf(oldFields.keys.to[ListSet])) {
-            record.withFields(oldFields.filter { case (k, _) => !removedFields.contains(k) }).pure[F]
+            SnapshotState[F].modify(
+              _.withDefinition(domainRef, internalRef, record.withFields(oldFields.filter {
+                case (k, _) => !removedFields.contains(k)
+              }))
+            )
           } else {
-            SchemaError.recordFieldsMissing[F, output.Data.Definition.Record](ref.domain.name,
-                                                                              ref.name,
-                                                                              removedFields -- oldFields.keys)
+            SchemaError.recordFieldsMissing(ref.domain.name, ref.name, removedFields -- oldFields.keys)
           }
         case Some(other) =>
-          SchemaError
-            .definitionTypeMismatch[F, output.Data.Definition.Record](ref.domain.name, ref.name, "record", other)
+          SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "record", other)
         case None =>
           SchemaError.definitionMissing(ref.domain.name, ref.name)
       }
