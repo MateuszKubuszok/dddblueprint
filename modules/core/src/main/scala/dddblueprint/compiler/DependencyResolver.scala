@@ -24,6 +24,27 @@ object DependencyResolver {
     case output.Data.Definition.Subscriber(_, events) => events
   }
 
+  val dataToDirectNamedDependencies: output.Data => ListMap[String, output.DefinitionRef] = {
+    case _: output.Data.Primitive | _: output.Data.Enumerable | _: output.Data.Definition.Enum => ListMap.empty
+    case record: output.Data.Definition.Record =>
+      val output.Data.Definition.Record.Aux(_, fields, _) = record
+      fields.map { case (field, ref) => field -> argumentToRef(ref) }.collect {
+        case (field, Some(ref)) => field -> ref
+      }
+    case output.Data.Definition.Service(_, inputs, outputs) =>
+      // TODO: output # -> entity name
+      inputs.map { case (field, ref) => field -> argumentToRef(ref) }.collect {
+        case (field, Some(ref)) => field -> ref
+      } ++
+        outputs.zipWithIndex.map { case (r, i) => s"output $i" -> r }
+    case output.Data.Definition.Publisher(_, events) =>
+      // TODO: event # -> entity name
+      ListMap(events.zipWithIndex.map { case (r, i) => s"event $i" -> r }.toSeq: _*)
+    case output.Data.Definition.Subscriber(_, events) =>
+      // TODO: event # -> entity name
+      ListMap(events.zipWithIndex.map { case (r, i) => s"event $i" -> r }.toSeq: _*)
+  }
+
   def findTransitiveDependencies(
     definitions: ListMap[output.DefinitionRef, output.Data.Definition]
   ): ListMap[output.DefinitionRef, Dependencies] = {

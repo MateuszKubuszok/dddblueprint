@@ -41,46 +41,18 @@ import scala.collection.immutable.{ ListMap, ListSet }
     }
   }
 
-  // scalastyle:off cyclomatic.complexity
   def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     val isDefined = newVersion.definitions.keySet.contains _
-    newVersion.definitions.values.toList.flatMap {
-      case record: output.Data.Definition.Record =>
-        val output.Data.Definition.Record.Aux(ref, fields, _) = record
-        findMissing(newVersion, ref, isDefined) {
-          fields.map { case (n, a) => n -> DependencyResolver.argumentToRef(a) }.collect { case (f, Some(r)) => f -> r }
-        }
-
-      case output.Data.Definition.Service(ref, inputs, outputs) =>
-        findMissing(newVersion, ref, isDefined) {
-          // TODO: output # -> entity name
-          inputs
-            .map { case (n, a) => n -> DependencyResolver.argumentToRef(a) }
-            .collect { case (f, Some(r)) => f -> r } ++ ListMap(
-            outputs.zipWithIndex.map { case (r, i) => s"output $i" -> r }.toSeq: _*
-          )
-        }
-
-      case output.Data.Definition.Publisher(ref, events) =>
-        findMissing(newVersion, ref, isDefined) {
-          // TODO: event # -> entity name
-          ListMap(events.zipWithIndex.map { case (r, i) => s"event $i" -> r }.toSeq: _*)
-        }
-
-      case output.Data.Definition.Subscriber(ref, events) =>
-        findMissing(newVersion, ref, isDefined) {
-          // TODO: event # -> entity name
-          ListMap(events.zipWithIndex.map { case (r, i) => s"event $i" -> r }.toSeq: _*)
-        }
-
-      case _ => List.empty[SchemaError]
+    newVersion.definitions.flatMap {
+      case (ref, body) =>
+        findMissing(newVersion, ref, isDefined)(DependencyResolver.dataToDirectNamedDependencies(body))
     } match {
       case head :: tail => NonEmptyList(head, tail).raise[F, Unit]
       case Nil          => ().pure[F]
     }
   }
-  // scalastyle:on
 
+  // scalastyle:off cyclomatic.complexity
   def typesMatches(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     (for {
       (newRef, newDef) <- newVersion.definitions.to[ListSet]
@@ -120,6 +92,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
       case Nil          => ().pure[F]
     }
   }
+  // scalastyle:on
 
   def migrationsForEnums(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     val enumsWithRemovedValues = for {
