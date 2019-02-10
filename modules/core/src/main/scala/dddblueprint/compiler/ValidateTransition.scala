@@ -13,12 +13,6 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
 @Cached class ValidateTransition[F[_]: Sync: SnapshotState: SchemaErrorRaise] {
 
-  private val argumentToRef: output.Argument => Option[output.DefinitionRef] = {
-    case ref: output.DefinitionRef  => Some(ref)
-    case _:   output.Data.Primitive => None
-    case output.Data.Definition.Record.Tuple(ref, _) => Some(ref)
-  }
-
   // TODO: potentially throwing, fix later
   // use new
   // fallback on old
@@ -28,24 +22,6 @@ import scala.collection.immutable.{ ListMap, ListSet }
     val output.DomainName(domainName)          = version.namespaces.domains(domainRef)
     domainName -> name
   }
-
-  // TODO: it is not handling tuples and it doesn't solve recursive deps !!!
-  private def findDependencies(version: output.Snapshot): ListMap[output.DefinitionRef, output.Data.Definition.RefSet] =
-    ListMap(
-      version.definitions.values.collect {
-        case output.Data.Definition.Record.Aux(ref, fields, _) =>
-          ref -> fields.values.collect { case fieldRef: output.DefinitionRef => fieldRef }.to[ListSet]
-
-        case output.Data.Definition.Service(ref, inputs, outputs) =>
-          ref -> (inputs.values.collect { case fieldRef: output.DefinitionRef => fieldRef }.to[ListSet] ++ outputs)
-
-        case output.Data.Definition.Publisher(ref, events) =>
-          ref -> events
-
-        case output.Data.Definition.Subscriber(ref, events) =>
-          ref -> events
-      }.toSeq: _*
-    )
 
   def apply(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] =
     removedAreNotUsed(newVersion)
@@ -69,15 +45,18 @@ import scala.collection.immutable.{ ListMap, ListSet }
   def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     val isDefined = newVersion.definitions.keySet.contains _
     newVersion.definitions.values.toList.flatMap {
-      case output.Data.Definition.Record.Aux(ref, fields, _) =>
+      case record: output.Data.Definition.Record =>
+        val output.Data.Definition.Record.Aux(ref, fields, _) = record
         findMissing(newVersion, ref, isDefined) {
-          fields.map { case (n, a) => n -> argumentToRef(a) }.collect { case (f, Some(r)) => f -> r }
+          fields.map { case (n, a) => n -> DependencyResolver.argumentToRef(a) }.collect { case (f, Some(r)) => f -> r }
         }
 
       case output.Data.Definition.Service(ref, inputs, outputs) =>
         findMissing(newVersion, ref, isDefined) {
           // TODO: output # -> entity name
-          inputs.map { case (n, a) => n -> argumentToRef(a) }.collect { case (f, Some(r)) => f -> r } ++ ListMap(
+          inputs
+            .map { case (n, a) => n -> DependencyResolver.argumentToRef(a) }
+            .collect { case (f, Some(r)) => f -> r } ++ ListMap(
             outputs.zipWithIndex.map { case (r, i) => s"output $i" -> r }.toSeq: _*
           )
         }
@@ -97,7 +76,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
       case _ => List.empty[SchemaError]
     } match {
       case head :: tail => NonEmptyList(head, tail).raise[F, Unit]
-      case _            => ().pure[F]
+      case Nil          => ().pure[F]
     }
   }
   // scalastyle:on
@@ -138,7 +117,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
       }
     } yield typeMismatch).toList match {
       case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
-      case _            => ().pure[F]
+      case Nil          => ().pure[F]
     }
   }
 
@@ -155,13 +134,15 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
     Traverse[ListSet]
       .sequence(
-        findDependencies(newVersion)
+        DependencyResolver
+          .findTransitiveDependencies(newVersion.definitions)
           .collect {
-            case (ref, deps) if enumsWithRemovedValues.intersect(deps).nonEmpty =>
+            case (ref, Dependencies(_, transitive)) if enumsWithRemovedValues.intersect(transitive).nonEmpty =>
               SnapshotState[F].modify { version =>
                 version.lens(_.manualMigrations).modify { migrations =>
-                  migrations.updated(ref,
-                                     migrations.getOrElse(ref, ListSet.empty) ++ enumsWithRemovedValues.intersect(deps))
+                  migrations
+                    .updated(ref,
+                             migrations.getOrElse(ref, ListSet.empty) ++ enumsWithRemovedValues.intersect(transitive))
                 }
               }
           }
@@ -170,7 +151,6 @@ import scala.collection.immutable.{ ListMap, ListSet }
       .map(_ => ())
   }
 
-  // TODO: removed records/fields - add required migrations defs
   def migrationsForRecords(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     val recordsWithChangedOrRemovedFields = for {
       (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
@@ -195,13 +175,15 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
     Traverse[ListSet]
       .sequence(
-        findDependencies(newVersion)
+        DependencyResolver
+          .findTransitiveDependencies(newVersion.definitions)
           .collect {
-            case (ref, deps) if fieldOrRecordRemoved.intersect(deps).nonEmpty =>
+            case (ref, Dependencies(_, transitive)) if fieldOrRecordRemoved.intersect(transitive).nonEmpty =>
               SnapshotState[F].modify { version =>
                 version.lens(_.manualMigrations).modify { migrations =>
-                  migrations.updated(ref,
-                                     migrations.getOrElse(ref, ListSet.empty) ++ fieldOrRecordRemoved.intersect(deps))
+                  migrations
+                    .updated(ref,
+                             migrations.getOrElse(ref, ListSet.empty) ++ fieldOrRecordRemoved.intersect(transitive))
                 }
               }
           }

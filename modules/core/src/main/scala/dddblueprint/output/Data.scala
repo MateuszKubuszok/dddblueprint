@@ -52,7 +52,7 @@ object Data {
 
     def argumentType: Argument.Type = Argument.Type.Primitive
   }
-  @Semi(Eq, ShowPretty) sealed trait Enumerable extends Data
+  @Semi(Eq, ShowPretty) sealed trait Enumerable extends Data // TODO: it doesn't has to extend Data
 
   case object ID extends Primitive
   case object Boolean extends Primitive with Enumerable
