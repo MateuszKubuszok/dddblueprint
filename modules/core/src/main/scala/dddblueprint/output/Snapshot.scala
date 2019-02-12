@@ -34,6 +34,23 @@ import scala.collection.immutable.{ ListMap, ListSet }
   private val intoDefinitions =
     GenLens[output.Definitions](_.definitions)
 
+  // ensures domain exists in namespace
+  def withDomainRef(domainRef: DomainRef, name: String): Snapshot =
+    this.lens(_.namespaces.domains).modify(_ + (domainRef -> output.DomainName(name)))
+
+  // ensures definitions exists in namespace
+  def withDefinitionRef(domainRef:     DomainRef,
+                        domainName:    String,
+                        definitionRef: DefinitionRef,
+                        name:          String): Snapshot =
+    this
+      .withDomainRef(domainRef, domainName)
+      .lens(_.namespaces.definitions)
+      .modify(
+        _ + (definitionRef -> output.DefinitionName(domainRef, name))
+      )
+
+  // assumes refs is already put into namespaces
   def withDefinition(domainRef: DomainRef, definitionRef: DefinitionRef, body: Data.Definition): Snapshot =
     this
     // ensure domain key exists
@@ -45,7 +62,16 @@ import scala.collection.immutable.{ ListMap, ListSet }
       .composeLens(intoDefinitions)
       .modify(_.updated(definitionRef, body))
 
-  def withoutDefinition(domainRef: DomainRef, definitionRef: DefinitionRef): Snapshot =
+  // ensures refs and definitions are in place
+  def withDefinition(domainRef:     DomainRef,
+                     domainName:    String,
+                     definitionRef: DefinitionRef,
+                     name:          String,
+                     body:          Data.Definition): Snapshot =
+    this.withDefinitionRef(domainRef, domainName, definitionRef, name).withDefinition(domainRef, definitionRef, body)
+
+  // removes definition if there is something to remove
+  def withoutDefinition(domainRef: DomainRef, defRef: DefinitionRef): Snapshot =
     this
     // ensure domain key exists
       .lens(_.domains)
@@ -54,5 +80,23 @@ import scala.collection.immutable.{ ListMap, ListSet }
       .lens(_.domains)
       .composeOptional(domainIndex(domainRef))
       .composeLens(intoDefinitions)
-      .modify(_ - definitionRef)
+      .modify(_ - defRef)
+      // remove all usages
+      .lens(_.domains)
+      .composeOptional(domainIndex(domainRef))
+      .composeLens(intoDefinitions)
+      .modify {
+        _.map {
+          case (ref, enum: output.Data.Definition.Enum) =>
+            ref -> enum
+          case (ref, record: output.Data.Definition.Record) =>
+            ref -> record.withFields(record.fields.filterNot(_._2 === defRef))
+          case (ref, service: output.Data.Definition.Service) =>
+            ref -> service.lens(_.input).modify(_.filterNot(_._2 === defRef)).lens(_.output).modify(_ - defRef)
+          case (ref, publisher: output.Data.Definition.Publisher) =>
+            ref -> publisher.lens(_.events).modify(_ - defRef)
+          case (ref, subscriber: output.Data.Definition.Subscriber) =>
+            ref -> subscriber.lens(_.events).modify(_ - defRef)
+        } - defRef
+      }
 }

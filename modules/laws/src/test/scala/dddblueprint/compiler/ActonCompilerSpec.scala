@@ -13,75 +13,70 @@ class ActonCompilerSpec extends CompilerSpec {
   "ActionCompiler on CreateDefinition" should {
 
     "correctly compile enum definition" in new Fixture {
-      val definition       = input.Fixtures.Data.Definition.Enum1
+      val definition       = inputs.Data.Definition.Enum1
       val createDefinition = input.Action.CreateDefinition(definition)
 
       new TestSnapshot(ActionCompiler(createDefinition))() {
         val internalRef = definitionRefIso.get(definition.ref)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Enum1.lens(_.ref).set(internalRef)
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Enum1.lens(_.ref).set(internalRef)
       }
     }
 
     "correctly compile tuple definition" in new Fixture {
-      val definition       = input.Fixtures.Data.Definition.Record.Tuple1
+      val definition       = inputs.Data.Definition.Record.Tuple1
       val createDefinition = input.Action.CreateDefinition(definition)
 
       new TestSnapshot(ActionCompiler(createDefinition))() {
         val internalRef = definitionRefIso.get(definition.ref)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Record.Tuple1.lens(_.ref).set(internalRef)
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Tuple1.lens(_.ref).set(internalRef)
       }
     }
 
     "correctly compile entity definition" in new Fixture {
-      val definition       = input.Fixtures.Data.Definition.Record.Entity1
+      val definition       = inputs.Data.Definition.Record.Entity1
       val createDefinition = input.Action.CreateDefinition(definition)
 
       new TestSnapshot(ActionCompiler(createDefinition))() {
         val internalRef = definitionRefIso.get(definition.ref)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Record.Entity1
-          .lens(_.ref)
-          .set(internalRef)
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Entity1.lens(_.ref).set(internalRef)
       }
     }
 
     "correctly compile value definition" in new Fixture {
-      val definition       = input.Fixtures.Data.Definition.Record.Value1
+      val definition       = inputs.Data.Definition.Record.Value1
       val createDefinition = input.Action.CreateDefinition(definition)
 
       new TestSnapshot(ActionCompiler(createDefinition))() {
         val internalRef = definitionRefIso.get(definition.ref)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Record.Value1.lens(_.ref).set(internalRef)
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Value1.lens(_.ref).set(internalRef)
       }
     }
 
     "correctly compile event definition" in new Fixture {
-      val definition       = input.Fixtures.Data.Definition.Record.Event1
+      val definition       = inputs.Data.Definition.Record.Event1
       val createDefinition = input.Action.CreateDefinition(definition)
 
       new TestSnapshot(ActionCompiler(createDefinition))() {
         val internalRef = definitionRefIso.get(definition.ref)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Record.Event1.lens(_.ref).set(internalRef)
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Event1.lens(_.ref).set(internalRef)
       }
     }
 
     "raise error if definition already exists" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                 input.Fixtures.Enum1Ref.name))
-        )
-        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Enum1Ref, output.Fixtures.Data.Definition.Enum1)
-      val definition       = input.Fixtures.Data.Definition.Enum1
+        .withDefinition(outputs.Domain1Ref,
+                        inputs.Domain1Ref.name,
+                        outputs.Enum1Ref,
+                        inputs.Enum1Ref.name,
+                        outputs.Data.Definition.Enum1)
+      val definition       = inputs.Data.Definition.Enum1
       val createDefinition = input.Action.CreateDefinition(definition)
 
       new TestSnapshot(ActionCompiler(createDefinition))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(SchemaError.DefinitionExists(input.Fixtures.Domain1Ref.name, input.Fixtures.Enum1Ref.name))
+            NonEmptyList.of(SchemaError.DefinitionExists(inputs.Domain1Ref.name, inputs.Enum1Ref.name))
           )
         )
       }
@@ -93,15 +88,14 @@ class ActonCompilerSpec extends CompilerSpec {
     "correctly remove definition" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                 input.Fixtures.Enum1Ref.name))
+        .withDefinition(
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Enum1Ref,
+          inputs.Enum1Ref.name,
+          outputs.Data.Definition.Enum1
         )
-        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Enum1Ref, output.Fixtures.Data.Definition.Enum1)
-      val removeDefinition = input.Action.RemoveDefinition(input.Fixtures.Enum1Ref)
+      val removeDefinition = input.Action.RemoveDefinition(inputs.Enum1Ref)
 
       new TestSnapshot(ActionCompiler(removeDefinition))(snapshot) {
         val internalRef = definitionRefIso.get(removeDefinition.definition)
@@ -110,18 +104,13 @@ class ActonCompilerSpec extends CompilerSpec {
     }
 
     "raise error if definition doesn't exist" in new Fixture {
-      val snapshot = output
-        .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-      val removeDefinition = input.Action.RemoveDefinition(input.Fixtures.Enum1Ref)
+      val snapshot         = output.Snapshot().withDomainRef(outputs.Domain1Ref, inputs.Domain1Ref.name)
+      val removeDefinition = input.Action.RemoveDefinition(inputs.Enum1Ref)
 
       new TestSnapshot(ActionCompiler(removeDefinition))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(
-              SchemaError.DefinitionMissing(input.Fixtures.Domain1Ref.name, input.Fixtures.Enum1Ref.name)
-            )
+            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Enum1Ref.name))
           )
         )
       }
@@ -133,47 +122,40 @@ class ActonCompilerSpec extends CompilerSpec {
     "add values if enum exists and none of the values existed before" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                 input.Fixtures.Enum1Ref.name))
+        .withDefinition(
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Enum1Ref,
+          inputs.Enum1Ref.name,
+          outputs.Data.Definition.Enum1
         )
-        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Enum1Ref, output.Fixtures.Data.Definition.Enum1)
-      val addEnumValues = input.Action.AddEnumValues(input.Fixtures.Enum1Ref, ListSet("c", "d"))
+      val addEnumValues = input.Action.AddEnumValues(inputs.Enum1Ref, ListSet("c", "d"))
 
       new TestSnapshot(ActionCompiler(addEnumValues))(snapshot) {
         val internalRef = definitionRefIso.get(addEnumValues.definition)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Enum1
-          .withValues(ListSet("a", "b", "c", "d"))
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Enum1.withValues(ListSet("a", "b", "c", "d"))
       }
     }
 
     "raise error if enum exists and some the values existed before" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                 input.Fixtures.Enum1Ref.name))
-        )
         .withDefinition(
-          output.Fixtures.Domain1Ref,
-          output.Fixtures.Enum1Ref,
-          output.Fixtures.Data.Definition.Enum1.withValues(ListSet("a", "b", "c"))
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Enum1Ref,
+          inputs.Enum1Ref.name,
+          outputs.Data.Definition.Enum1.withValues(ListSet("a", "b", "c"))
         )
-      val addEnumValues = input.Action.AddEnumValues(input.Fixtures.Enum1Ref, ListSet("c", "d"))
+      val addEnumValues = input.Action.AddEnumValues(inputs.Enum1Ref, ListSet("c", "d"))
 
       new TestSnapshot(ActionCompiler(addEnumValues))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
               SchemaError.EnumValuesExist(
-                input.Fixtures.Domain1Ref.name,
-                input.Fixtures.Enum1Ref.name,
+                inputs.Domain1Ref.name,
+                inputs.Enum1Ref.name,
                 ListSet("c")
               )
             )
@@ -185,27 +167,24 @@ class ActonCompilerSpec extends CompilerSpec {
     "raise error if definition exists and but is not a record" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                 input.Fixtures.Enum1Ref.name))
+        .withDefinition(
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Enum1Ref,
+          inputs.Enum1Ref.name,
+          outputs.Data.Definition.Record.Tuple1
         )
-        .withDefinition(output.Fixtures.Domain1Ref,
-                        output.Fixtures.Enum1Ref,
-                        output.Fixtures.Data.Definition.Record.Tuple1)
-      val addEnumValues = input.Action.AddEnumValues(input.Fixtures.Enum1Ref, ListSet("c", "d"))
+      val addEnumValues = input.Action.AddEnumValues(inputs.Enum1Ref, ListSet("c", "d"))
 
       new TestSnapshot(ActionCompiler(addEnumValues))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
               SchemaError.DefinitionTypeMismatch(
-                input.Fixtures.Domain1Ref.name,
-                input.Fixtures.Tuple1Ref.name,
+                inputs.Domain1Ref.name,
+                inputs.Tuple1Ref.name,
                 "enum",
-                output.Fixtures.Data.Definition.Record.Tuple1
+                outputs.Data.Definition.Record.Tuple1
               )
             )
           )
@@ -214,17 +193,14 @@ class ActonCompilerSpec extends CompilerSpec {
     }
 
     "raise error if enum doesn't exist" in new Fixture {
-      val snapshot = output
-        .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-      val addEnumValues = input.Action.AddEnumValues(input.Fixtures.Enum1Ref, ListSet("c", "d"))
+      val snapshot      = output.Snapshot().withDomainRef(outputs.Domain1Ref, inputs.Domain1Ref.name)
+      val addEnumValues = input.Action.AddEnumValues(inputs.Enum1Ref, ListSet("c", "d"))
 
       new TestSnapshot(ActionCompiler(addEnumValues))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
-              SchemaError.DefinitionMissing(input.Fixtures.Domain1Ref.name, input.Fixtures.Enum1Ref.name)
+              SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Enum1Ref.name)
             )
           )
         )
@@ -237,45 +213,37 @@ class ActonCompilerSpec extends CompilerSpec {
     "remove values if enum exists and all of the values existed before" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                 input.Fixtures.Enum1Ref.name))
+        .withDefinition(
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Enum1Ref,
+          inputs.Enum1Ref.name,
+          outputs.Data.Definition.Enum1
         )
-        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Enum1Ref, output.Fixtures.Data.Definition.Enum1)
-      val removeEnumValues = input.Action.RemoveEnumValues(input.Fixtures.Enum1Ref, ListSet("a"))
+      val removeEnumValues = input.Action.RemoveEnumValues(inputs.Enum1Ref, ListSet("a"))
 
       new TestSnapshot(ActionCompiler(removeEnumValues))(snapshot) {
         val internalRef = definitionRefIso.get(removeEnumValues.definition)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Enum1.withValues(ListSet("b"))
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Enum1.withValues(ListSet("b"))
       }
     }
 
     "raise error if enum exists and some the values are missing" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                 input.Fixtures.Enum1Ref.name))
+        .withDefinition(
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Enum1Ref,
+          inputs.Enum1Ref.name,
+          outputs.Data.Definition.Enum1
         )
-        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Enum1Ref, output.Fixtures.Data.Definition.Enum1)
-      val removeEnumValues = input.Action.RemoveEnumValues(input.Fixtures.Enum1Ref, ListSet("a", "c"))
+      val removeEnumValues = input.Action.RemoveEnumValues(inputs.Enum1Ref, ListSet("a", "c"))
 
       new TestSnapshot(ActionCompiler(removeEnumValues))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(
-              SchemaError.EnumValuesMissing(
-                input.Fixtures.Domain1Ref.name,
-                input.Fixtures.Enum1Ref.name,
-                ListSet("c")
-              )
-            )
+            NonEmptyList.of(SchemaError.EnumValuesMissing(inputs.Domain1Ref.name, inputs.Enum1Ref.name, ListSet("c")))
           )
         )
       }
@@ -284,28 +252,23 @@ class ActonCompilerSpec extends CompilerSpec {
     "raise error if definition exists and but is not a record" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Enum1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                 input.Fixtures.Enum1Ref.name))
+        .withDefinition(
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Enum1Ref,
+          inputs.Enum1Ref.name,
+          outputs.Data.Definition.Record.Tuple1
         )
-        .withDefinition(output.Fixtures.Domain1Ref,
-                        output.Fixtures.Enum1Ref,
-                        output.Fixtures.Data.Definition.Record.Tuple1)
-      val removeEnumValues = input.Action.RemoveEnumValues(input.Fixtures.Enum1Ref, ListSet("a", "c"))
+      val removeEnumValues = input.Action.RemoveEnumValues(inputs.Enum1Ref, ListSet("a", "c"))
 
       new TestSnapshot(ActionCompiler(removeEnumValues))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
-              SchemaError.DefinitionTypeMismatch(
-                input.Fixtures.Domain1Ref.name,
-                input.Fixtures.Tuple1Ref.name,
-                "enum",
-                output.Fixtures.Data.Definition.Record.Tuple1
-              )
+              SchemaError.DefinitionTypeMismatch(inputs.Domain1Ref.name,
+                                                 inputs.Tuple1Ref.name,
+                                                 "enum",
+                                                 outputs.Data.Definition.Record.Tuple1)
             )
           )
         )
@@ -313,18 +276,13 @@ class ActonCompilerSpec extends CompilerSpec {
     }
 
     "raise error if enum doesn't exist" in new Fixture {
-      val snapshot = output
-        .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-      val removeEnumValues = input.Action.RemoveEnumValues(input.Fixtures.Enum1Ref, ListSet("a"))
+      val snapshot         = output.Snapshot().withDomainRef(outputs.Domain1Ref, inputs.Domain1Ref.name)
+      val removeEnumValues = input.Action.RemoveEnumValues(inputs.Enum1Ref, ListSet("a"))
 
       new TestSnapshot(ActionCompiler(removeEnumValues))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(
-              SchemaError.DefinitionMissing(input.Fixtures.Domain1Ref.name, input.Fixtures.Enum1Ref.name)
-            )
+            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Enum1Ref.name))
           )
         )
       }
@@ -336,23 +294,18 @@ class ActonCompilerSpec extends CompilerSpec {
     "add fields if records exists and none of the fields existed before" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Tuple1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                  input.Fixtures.Tuple1Ref.name))
-        )
         .withDefinition(
-          output.Fixtures.Domain1Ref,
-          output.Fixtures.Tuple1Ref,
-          output.Fixtures.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int))
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Tuple1Ref,
+          inputs.Tuple1Ref.name,
+          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int))
         )
-      val addRecordFields = input.Action.AddRecordFields(input.Fixtures.Tuple1Ref, ListMap("b" -> input.Data.Double))
+      val addRecordFields = input.Action.AddRecordFields(inputs.Tuple1Ref, ListMap("b" -> input.Data.Double))
 
       new TestSnapshot(ActionCompiler(addRecordFields))(snapshot) {
         val internalRef = definitionRefIso.get(addRecordFields.definition)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Record.Tuple1
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Tuple1
           .withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
       }
     }
@@ -360,31 +313,20 @@ class ActonCompilerSpec extends CompilerSpec {
     "raise error if records exists and some of the fields existed before" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Tuple1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                  input.Fixtures.Tuple1Ref.name))
-        )
         .withDefinition(
-          output.Fixtures.Domain1Ref,
-          output.Fixtures.Tuple1Ref,
-          output.Fixtures.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int))
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Tuple1Ref,
+          inputs.Tuple1Ref.name,
+          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int))
         )
       val addRecordFields =
-        input.Action.AddRecordFields(input.Fixtures.Tuple1Ref, ListMap("a" -> input.Data.Int, "b" -> input.Data.Double))
+        input.Action.AddRecordFields(inputs.Tuple1Ref, ListMap("a" -> input.Data.Int, "b" -> input.Data.Double))
 
       new TestSnapshot(ActionCompiler(addRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(
-              SchemaError.RecordFieldsExist(
-                input.Fixtures.Domain1Ref.name,
-                input.Fixtures.Tuple1Ref.name,
-                ListSet("a")
-              )
-            )
+            NonEmptyList.of(SchemaError.RecordFieldsExist(inputs.Domain1Ref.name, inputs.Tuple1Ref.name, ListSet("a")))
           )
         )
       }
@@ -393,26 +335,23 @@ class ActonCompilerSpec extends CompilerSpec {
     "raise error if definition exists and but is not a record" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Tuple1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                  input.Fixtures.Tuple1Ref.name))
+        .withDefinition(
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Tuple1Ref,
+          inputs.Tuple1Ref.name,
+          outputs.Data.Definition.Enum1
         )
-        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Tuple1Ref, output.Fixtures.Data.Definition.Enum1)
-      val addRecordFields = input.Action.AddRecordFields(input.Fixtures.Tuple1Ref, ListMap("b" -> input.Data.Double))
+      val addRecordFields = input.Action.AddRecordFields(inputs.Tuple1Ref, ListMap("b" -> input.Data.Double))
 
       new TestSnapshot(ActionCompiler(addRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
-              SchemaError.DefinitionTypeMismatch(
-                input.Fixtures.Domain1Ref.name,
-                input.Fixtures.Tuple1Ref.name,
-                "record",
-                output.Fixtures.Data.Definition.Enum1
-              )
+              SchemaError.DefinitionTypeMismatch(inputs.Domain1Ref.name,
+                                                 inputs.Tuple1Ref.name,
+                                                 "record",
+                                                 outputs.Data.Definition.Enum1)
             )
           )
         )
@@ -420,18 +359,13 @@ class ActonCompilerSpec extends CompilerSpec {
     }
 
     "raise error if record doesn't exist" in new Fixture {
-      val snapshot = output
-        .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-      val addRecordFields = input.Action.AddRecordFields(input.Fixtures.Tuple1Ref, ListMap("b" -> input.Data.Double))
+      val snapshot        = output.Snapshot().withDomainRef(outputs.Domain1Ref, inputs.Domain1Ref.name)
+      val addRecordFields = input.Action.AddRecordFields(inputs.Tuple1Ref, ListMap("b" -> input.Data.Double))
 
       new TestSnapshot(ActionCompiler(addRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(
-              SchemaError.DefinitionMissing(input.Fixtures.Domain1Ref.name, input.Fixtures.Tuple1Ref.name)
-            )
+            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Tuple1Ref.name))
           )
         )
       }
@@ -443,24 +377,18 @@ class ActonCompilerSpec extends CompilerSpec {
     "remove fields if records exists and all of the fields existed before" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Tuple1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                  input.Fixtures.Tuple1Ref.name))
-        )
         .withDefinition(
-          output.Fixtures.Domain1Ref,
-          output.Fixtures.Tuple1Ref,
-          output.Fixtures.Data.Definition.Record.Tuple1
-            .withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Tuple1Ref,
+          inputs.Tuple1Ref.name,
+          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
         )
-      val removeRecordFields = input.Action.RemoveRecordFields(input.Fixtures.Tuple1Ref, ListSet("b"))
+      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Tuple1Ref, ListSet("b"))
 
       new TestSnapshot(ActionCompiler(removeRecordFields))(snapshot) {
         val internalRef = definitionRefIso.get(removeRecordFields.definition)
-        snapshot.definitions(internalRef) === output.Fixtures.Data.Definition.Record.Tuple1
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Tuple1
           .withFields(ListMap("a" -> output.Data.Int))
       }
     }
@@ -468,30 +396,20 @@ class ActonCompilerSpec extends CompilerSpec {
     "raise error if records exists and some of the fields are missing" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Tuple1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                  input.Fixtures.Tuple1Ref.name))
-        )
         .withDefinition(
-          output.Fixtures.Domain1Ref,
-          output.Fixtures.Tuple1Ref,
-          output.Fixtures.Data.Definition.Record.Tuple1
-            .withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Tuple1Ref,
+          inputs.Tuple1Ref.name,
+          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
         )
-      val removeRecordFields = input.Action.RemoveRecordFields(input.Fixtures.Tuple1Ref, ListSet("c"))
+      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Tuple1Ref, ListSet("c"))
 
       new TestSnapshot(ActionCompiler(removeRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
-              SchemaError.RecordFieldsMissing(
-                input.Fixtures.Domain1Ref.name,
-                input.Fixtures.Tuple1Ref.name,
-                ListSet("c")
-              )
+              SchemaError.RecordFieldsMissing(inputs.Domain1Ref.name, inputs.Tuple1Ref.name, ListSet("c"))
             )
           )
         )
@@ -501,26 +419,23 @@ class ActonCompilerSpec extends CompilerSpec {
     "raise error if definition exists and but is not a record" in new Fixture {
       val snapshot = output
         .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-        .lens(_.namespaces.definitions)
-        .modify(
-          _ + (output.Fixtures.Tuple1Ref -> output.DefinitionName(output.Fixtures.Domain1Ref,
-                                                                  input.Fixtures.Tuple1Ref.name))
+        .withDefinition(
+          outputs.Domain1Ref,
+          inputs.Domain1Ref.name,
+          outputs.Tuple1Ref,
+          inputs.Tuple1Ref.name,
+          outputs.Data.Definition.Enum1
         )
-        .withDefinition(output.Fixtures.Domain1Ref, output.Fixtures.Tuple1Ref, output.Fixtures.Data.Definition.Enum1)
-      val removeRecordFields = input.Action.RemoveRecordFields(input.Fixtures.Tuple1Ref, ListSet("c"))
+      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Tuple1Ref, ListSet("c"))
 
       new TestSnapshot(ActionCompiler(removeRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
-              SchemaError.DefinitionTypeMismatch(
-                input.Fixtures.Domain1Ref.name,
-                input.Fixtures.Tuple1Ref.name,
-                "record",
-                output.Fixtures.Data.Definition.Enum1
-              )
+              SchemaError.DefinitionTypeMismatch(inputs.Domain1Ref.name,
+                                                 inputs.Tuple1Ref.name,
+                                                 "record",
+                                                 outputs.Data.Definition.Enum1)
             )
           )
         )
@@ -528,18 +443,14 @@ class ActonCompilerSpec extends CompilerSpec {
     }
 
     "raise error if record doesn't exist" in new Fixture {
-      val snapshot = output
-        .Snapshot()
-        .lens(_.namespaces.domains)
-        .modify(_ + (output.Fixtures.Domain1Ref -> output.DomainName(input.Fixtures.Domain1Ref.name)))
-      val removeRecordFields = input.Action.RemoveRecordFields(input.Fixtures.Tuple1Ref, ListSet("b"))
+      val snapshot = output.Snapshot().withDomainRef(outputs.Domain1Ref, inputs.Domain1Ref.name)
+
+      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Tuple1Ref, ListSet("b"))
 
       new TestSnapshot(ActionCompiler(removeRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(
-              SchemaError.DefinitionMissing(input.Fixtures.Domain1Ref.name, input.Fixtures.Tuple1Ref.name)
-            )
+            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Tuple1Ref.name))
           )
         )
       }

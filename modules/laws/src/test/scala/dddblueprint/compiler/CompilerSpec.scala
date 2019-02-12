@@ -6,6 +6,9 @@ import org.specs2.mutable.Specification
 
 trait CompilerSpec extends Specification {
 
+  val inputs  = input.Fixtures
+  val outputs = output.Fixtures
+
   type F[A] = monix.WithCoeval.CoevalState[A]
 
   protected implicit val sync:              Sync[F]              = CompilerSpec.implicits._1
