@@ -17,10 +17,13 @@ import scala.collection.immutable.{ ListMap, ListSet }
   def apply(action: input.Action): F[Unit] = action match {
     case input.Action.CreateDefinition(definition)           => createDefinition(definition)
     case input.Action.RemoveDefinition(definition)           => removeDefinition(definition)
+    case input.Action.RenameDefinition(definition, rename)   => renameDefinition(definition, rename)
     case input.Action.AddEnumValues(definition, values)      => addEnumValues(definition, values)
     case input.Action.RemoveEnumValues(definition, values)   => removeEnumValues(definition, values)
+    case input.Action.RenameEnumValues(definition, rename)   => renameEnumValues(definition, rename)
     case input.Action.AddRecordFields(definition, fields)    => addRecordFields(definition, fields)
     case input.Action.RemoveRecordFields(definition, fields) => removeRecordFields(definition, fields)
+    case input.Action.RenameRecordFields(definition, rename) => renameRecordFields(definition, rename)
   }
 
   lazy val createDefinition: input.Data.Definition => F[Unit] = {
@@ -134,6 +137,12 @@ import scala.collection.immutable.{ ListMap, ListSet }
       _ <- internalRef.removeDefinition[F]
     } yield ()
 
+  lazy val renameDefinition: (input.DefinitionRef, String) => F[Unit] = (ref, rename) =>
+    for {
+      internalRef <- ref.requireExists[F]
+      _ <- internalRef.renameDefinition[F](rename)
+    } yield ()
+
   lazy val addEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, newValues) =>
     for {
       internalRef <- ref.requireExists[F]
@@ -167,6 +176,29 @@ import scala.collection.immutable.{ ListMap, ListSet }
             )
           } else {
             SchemaError.enumValuesMissing(ref.domain.name, ref.name, removedValues -- oldValues)
+          }
+        case Some(other) =>
+          SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "enum", other)
+        case None =>
+          SchemaError.definitionMissing(ref.domain.name, ref.name)
+      }
+    } yield ()
+
+  lazy val renameEnumValues: (input.DefinitionRef, ListMap[String, String]) => F[Unit] = (ref, renamedValues) =>
+    for {
+      internalRef <- ref.requireExists[F]
+      domainRef <- internalRef.toDomain[F]
+      currentDefinitionOpt <- internalRef.getDefinition[F]
+      _ <- currentDefinitionOpt match {
+        case Some(enum @ output.Data.Definition.Enum(_, oldValues, _)) =>
+          if (renamedValues.keySet.subsetOf(oldValues)) {
+            SnapshotState[F].modify(
+              _.withDefinition(domainRef, internalRef, enum.withValues(oldValues.map { value =>
+                renamedValues.getOrElse(value, value)
+              }))
+            )
+          } else {
+            SchemaError.enumValuesMissing(ref.domain.name, ref.name, renamedValues.keys.to[ListSet] -- oldValues)
           }
         case Some(other) =>
           SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "enum", other)
@@ -214,6 +246,29 @@ import scala.collection.immutable.{ ListMap, ListSet }
             )
           } else {
             SchemaError.recordFieldsMissing(ref.domain.name, ref.name, removedFields -- oldFields.keys)
+          }
+        case Some(other) =>
+          SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "record", other)
+        case None =>
+          SchemaError.definitionMissing(ref.domain.name, ref.name)
+      }
+    } yield ()
+
+  lazy val renameRecordFields: (input.DefinitionRef, ListMap[String, String]) => F[Unit] = (ref, renamedFields) =>
+    for {
+      internalRef <- ref.requireExists[F]
+      domainRef <- internalRef.toDomain[F]
+      currentDefinitionOpt <- internalRef.getDefinition[F]
+      _ <- currentDefinitionOpt match {
+        case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
+          if (renamedFields.keySet.subsetOf(oldFields.keys.to[ListSet])) {
+            SnapshotState[F].modify(
+              _.withDefinition(domainRef, internalRef, record.withFields(oldFields.map {
+                case (k, v) => renamedFields.getOrElse(k, k) -> v
+              }))
+            )
+          } else {
+            SchemaError.recordFieldsMissing(ref.domain.name, ref.name, renamedFields.keys.to[ListSet] -- oldFields.keys)
           }
         case Some(other) =>
           SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "record", other)

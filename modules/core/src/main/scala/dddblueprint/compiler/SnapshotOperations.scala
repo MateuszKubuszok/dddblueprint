@@ -76,6 +76,20 @@ import monocle.macros.syntax.lens._
       }
       _ <- oldVersion.withoutDefinition(name.domain, ref).set[F]
     } yield ()
+  def renameDefinition(ref: output.DefinitionRef, rename: String): F[Unit] =
+    for {
+      oldVersion <- SnapshotState[F].get
+      name <- oldVersion.namespaces.definitions.get(ref) match {
+        case Some(name) => name.pure[F]
+        case None       => SchemaError.invalidRef[F, output.DefinitionName](ref.id)
+      }
+      _ <- oldVersion.namespaces.definitions.values.find { case output.DefinitionName(_, n) => n === rename } match {
+        case Some(output.DefinitionName(domain, _)) =>
+          SchemaError.definitionExists[F, Unit](oldVersion.namespaces.domains(domain).name, rename)
+        case None => ().pure[F]
+      }
+      _ <- oldVersion.renameDefinition(name.domain, ref, rename).set[F]
+    } yield ()
 
   def translateDomainRef(ref: input.DomainRef): F[output.DomainName] =
     ref.transformInto[output.DomainName].pure[F]

@@ -99,4 +99,8 @@ import scala.collection.immutable.{ ListMap, ListSet }
             ref -> subscriber.lens(_.events).modify(_ - defRef)
         } - defRef
       }
+
+  // assumes definition exists
+  def renameDefinition(domainRef: DomainRef, defRef: DefinitionRef, newName: String): Snapshot =
+    this.lens(_.namespaces.definitions).modify(_.updated(defRef, output.DefinitionName(domainRef, newName)))
 }

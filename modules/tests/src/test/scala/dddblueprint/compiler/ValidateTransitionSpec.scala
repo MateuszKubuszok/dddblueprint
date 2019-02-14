@@ -223,7 +223,7 @@ class ValidateTransitionSpec extends CompilerSpec {
         .withDefinition(domainRef, ref2, definition2.withValues(ListSet("a")))
 
       new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
-        assert(snapshot.manualMigrations === ListMap(ref3 -> ListSet(ref2), ref4 -> ListSet(ref2)))
+        snapshot.manualMigrations === ListMap(ref3 -> ListSet(ref2), ref4 -> ListSet(ref2))
       }
     }
 
@@ -261,13 +261,11 @@ class ValidateTransitionSpec extends CompilerSpec {
         .withoutDefinition(domainRef, ref2)
 
       new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
-        assert(
-          snapshot.manualMigrations === ListMap(
-            ref3 -> ListSet(ref1),
-            ref4 -> ListSet(ref3, ref1),
-            ref5 -> ListSet(ref3, ref1),
-            ref6 -> ListSet(ref3, ref1)
-          )
+        snapshot.manualMigrations === ListMap(
+          ref3 -> ListSet(ref1),
+          ref4 -> ListSet(ref3, ref1),
+          ref5 -> ListSet(ref3, ref1),
+          ref6 -> ListSet(ref3, ref1)
         )
       }
     }

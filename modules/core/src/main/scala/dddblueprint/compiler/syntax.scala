@@ -45,6 +45,9 @@ trait syntax {
 
     def removeDefinition[F[_]: SnapshotOperations]: F[Unit] =
       SnapshotOperations[F].removeDefinition(definitionRef)
+
+    def renameDefinition[F[_]: SnapshotOperations](newName: String): F[Unit] =
+      SnapshotOperations[F].renameDefinition(definitionRef, newName)
   }
 
   implicit class OutputSnapshotOps(val snapshot: output.Snapshot) {
