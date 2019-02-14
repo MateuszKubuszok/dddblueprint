@@ -43,6 +43,11 @@ object SchemaError {
   final case class FieldDefinitionMissing(domain:    String, name: String, field:    String) extends SchemaError
   final case class ArgumentDefinitionMissing(domain: String, name: String, argument: String) extends SchemaError
 
+  final case class TupleUsedOutsideDomain(domain: String, name: String, where: output.Data.Definition)
+      extends SchemaError
+  final case class EventPublishedOutsideDomain(domain: String, name: String, where: output.Data.Definition.Publisher)
+      extends SchemaError
+
   def invalidRef[F[_]: SchemaErrorRaise, A](ref: UUID): F[A] =
     NonEmptyList.one(InvalidRef(ref): SchemaError).raise[F, A]
 

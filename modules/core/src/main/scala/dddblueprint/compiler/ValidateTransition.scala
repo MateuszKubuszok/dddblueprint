@@ -23,11 +23,8 @@ import scala.collection.immutable.{ ListMap, ListSet }
     domainName -> name
   }
 
-  def apply(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] =
-    removedAreNotUsed(newVersion)
-      .map2(typesMatches(oldVersion, newVersion))(_ |+| _)
-      .map2(migrationsForEnums(oldVersion, newVersion))(_ |+| _)
-      .map2(migrationsForRecords(oldVersion, newVersion))(_ |+| _)
+  private def resolveDependencies(newVersion: output.Snapshot): F[ListMap[output.DefinitionRef, Dependencies]] =
+    Sync[F].delay(DependencyResolver.findTransitiveDependencies(newVersion.definitions))
 
   private def findMissing(version:   output.Snapshot,
                           ref:       output.DefinitionRef,
@@ -40,6 +37,16 @@ import scala.collection.immutable.{ ListMap, ListSet }
       SchemaError.FieldDefinitionMissing(domain = domain, name = name, field = refNames(refWithoutDef)): SchemaError
     }
   }
+
+  // TODO: make dependency resolution parallel or sth
+  def apply(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] =
+    removedAreNotUsed(newVersion)
+      .map2(typesMatches(oldVersion, newVersion))(_ |+| _)
+      .map2(resolveDependencies(newVersion).flatMap(pubsubDependsOnlyOnEvents(newVersion, _)))(_ |+| _)
+      .map2(resolveDependencies(newVersion).flatMap(tupleInTheirDomain(newVersion, _)))(_ |+| _)
+      .map2(resolveDependencies(newVersion).flatMap(eventPublishedInTheirDomain(newVersion, _)))(_ |+| _)
+      .map2(migrationsForEnums(oldVersion, newVersion))(_ |+| _)
+      .map2(resolveDependencies(newVersion).flatMap(migrationsForRecords(oldVersion, newVersion, _)))(_ |+| _)
 
   def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     val isDefined = newVersion.definitions.keySet.contains _
@@ -94,6 +101,70 @@ import scala.collection.immutable.{ ListMap, ListSet }
   }
   // scalastyle:on
 
+  def pubsubDependsOnlyOnEvents(newVersion:   output.Snapshot,
+                                dependencies: ListMap[output.DefinitionRef, Dependencies]): F[Unit] = Sync[F].defer {
+    dependencies.toList.flatMap {
+      case (ref, Dependencies(direct, _)) =>
+        for {
+          _ <- newVersion.definitions.get(ref).toList.collect {
+            case _: output.Data.Definition.Publisher  => ()
+            case _: output.Data.Definition.Subscriber => ()
+          }
+          depsRef <- direct.toList
+          isDepsEvent = newVersion.definitions.get(depsRef) match {
+            case Some(_: output.Data.Definition.Record.Event) => true
+            case _ => false
+          }
+          if !isDepsEvent
+          (domain, name) = refToDomainAndName(newVersion, ref)
+        } yield SchemaError.DefinitionTypeMismatch(domain, name, "event", newVersion.definitions(depsRef)): SchemaError
+    } match {
+      case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
+      case Nil          => ().pure[F]
+    }
+  }
+
+  def tupleInTheirDomain(newVersion:   output.Snapshot,
+                         dependencies: ListMap[output.DefinitionRef, Dependencies]): F[Unit] = Sync[F].defer {
+    dependencies.toList.flatMap {
+      case (ref, Dependencies(direct, _)) =>
+        for {
+          refDomain <- newVersion.findDomain(ref).toList
+          (depsRef, depsDomain) <- direct.toList.flatMap(deps => newVersion.findDomain(deps).toList.map(deps -> _))
+          isDepsTuple = newVersion.definitions.get(depsRef) match {
+            case Some(_: output.Data.Definition.Record.Tuple) => true
+            case _ => false
+          }
+          if isDepsTuple && refDomain =!= depsDomain
+          (domain, name) = refToDomainAndName(newVersion, ref)
+        } yield SchemaError.TupleUsedOutsideDomain(domain, name, newVersion.definitions(depsRef)): SchemaError
+    } match {
+      case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
+      case Nil          => ().pure[F]
+    }
+  }
+
+  def eventPublishedInTheirDomain(newVersion:   output.Snapshot,
+                                  dependencies: ListMap[output.DefinitionRef, Dependencies]): F[Unit] = Sync[F].defer {
+    dependencies.toList.flatMap {
+      case (ref, Dependencies(direct, _)) =>
+        for {
+          publisher <- newVersion.definitions.get(ref).toList.collect { case p: output.Data.Definition.Publisher => p }
+          refDomain <- newVersion.findDomain(ref).toList
+          (depsRef, depsDomain) <- direct.toList.flatMap(deps => newVersion.findDomain(deps).toList.map(deps -> _))
+          isDepsEvent = newVersion.definitions.get(depsRef) match {
+            case Some(_: output.Data.Definition.Record.Event) => true
+            case _ => false
+          }
+          if isDepsEvent && refDomain =!= depsDomain
+          (domain, name) = refToDomainAndName(newVersion, ref)
+        } yield SchemaError.EventPublishedOutsideDomain(domain, name, publisher): SchemaError
+    } match {
+      case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
+      case Nil          => ().pure[F]
+    }
+  }
+
   def migrationsForEnums(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     val enumsWithRemovedValues = for {
       (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
@@ -124,7 +195,9 @@ import scala.collection.immutable.{ ListMap, ListSet }
       .map(_ => ())
   }
 
-  def migrationsForRecords(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
+  def migrationsForRecords(oldVersion:   output.Snapshot,
+                           newVersion:   output.Snapshot,
+                           dependencies: ListMap[output.DefinitionRef, Dependencies]): F[Unit] = Sync[F].defer {
     val recordsWithChangedOrRemovedFields = for {
       (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
         case (ref, enum: output.Data.Definition.Record) => ref -> enum
@@ -148,8 +221,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
     Traverse[ListSet]
       .sequence(
-        DependencyResolver
-          .findTransitiveDependencies(newVersion.definitions)
+        dependencies
           .collect {
             case (ref, Dependencies(_, transitive)) if fieldOrRecordRemoved.intersect(transitive).nonEmpty =>
               SnapshotState[F].modify { version =>

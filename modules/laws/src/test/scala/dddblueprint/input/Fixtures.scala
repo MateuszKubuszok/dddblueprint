@@ -42,7 +42,7 @@ object Fixtures {
       object Record {
 
         val Tuple1 = input.Data.Definition.Record.Tuple(Tuple1Ref, ListMap.empty)
-        val Tuple2 = input.Data.Definition.Record.Tuple(Tuple1Ref, ListMap.empty)
+        val Tuple2 = input.Data.Definition.Record.Tuple(Tuple2Ref, ListMap.empty)
 
         val Entity1 = input.Data.Definition.Record.Entity(Entity1Ref, ListMap.empty)
         val Entity2 = input.Data.Definition.Record.Entity(Entity2Ref, ListMap.empty)

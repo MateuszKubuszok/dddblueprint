@@ -11,8 +11,10 @@ class ValidateTransitionSpec extends CompilerSpec {
 
   "ValidateTransition" should {
 
-    val domainRef  = outputs.Domain2Ref
-    val domainName = inputs.Domain1Ref.name
+    val domainRef   = outputs.Domain1Ref
+    val domainName  = inputs.Domain1Ref.name
+    val domain2Ref  = outputs.Domain2Ref
+    val domain2Name = inputs.Domain2Ref.name
 
     "pass if none of removed definitions is used (all definitions exist)" in new Fixture {
       val ref1        = outputs.Enum1Ref
@@ -99,6 +101,102 @@ class ValidateTransitionSpec extends CompilerSpec {
       }
     }
 
+    "fail if tuple is used outside its domain" in new Fixture {
+      val ref1        = outputs.Tuple1Ref
+      val ref2        = outputs.Tuple2Ref
+      val name1       = inputs.Tuple1Ref.name
+      val name2       = inputs.Tuple2Ref.name
+      val definition1 = outputs.Data.Definition.Record.Tuple1
+      val definition2 = outputs.Data.Definition.Record.Tuple2.withFields(ListMap("a" -> ref1))
+
+      val oldSnapshot = output.Snapshot()
+      val newSnapshot = oldSnapshot.bumpVersion
+        .withDefinition(domainRef, domainName, ref1, name1, definition1)
+        .withDefinition(domain2Ref, domain2Name, ref2, name2, definition2)
+
+      new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
+        snapshot must throwA(
+          SchemaError.Wrapper(
+            NonEmptyList.of(
+              SchemaError.TupleUsedOutsideDomain(domainName, name1, definition2)
+            )
+          )
+        )
+      }
+    }
+
+    "fail if event is published outside its domain" in new Fixture {
+      val ref1        = outputs.Event1Ref
+      val ref2        = outputs.Publisher2Ref
+      val name1       = inputs.Event1Ref.name
+      val name2       = inputs.Publisher2Ref.name
+      val definition1 = outputs.Data.Definition.Record.Event1
+      val definition2 = outputs.Data.Definition.Publisher2.copy(events = ListSet(ref1))
+
+      val oldSnapshot = output.Snapshot()
+      val newSnapshot = oldSnapshot.bumpVersion
+        .withDefinition(domainRef, domainName, ref1, name1, definition1)
+        .withDefinition(domain2Ref, domain2Name, ref2, name2, definition2)
+
+      new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
+        snapshot must throwA(
+          SchemaError.Wrapper(
+            NonEmptyList.of(
+              SchemaError.EventPublishedOutsideDomain(domainName, name1, definition2)
+            )
+          )
+        )
+      }
+    }
+
+    "fail if publisher should publish non-event" in new Fixture {
+      val ref1        = outputs.Entity1Ref
+      val ref2        = outputs.Publisher1Ref
+      val name1       = inputs.Entity1Ref.name
+      val name2       = inputs.Publisher1Ref.name
+      val definition1 = outputs.Data.Definition.Record.Entity1
+      val definition2 = outputs.Data.Definition.Publisher1.copy(events = ListSet(ref1))
+
+      val oldSnapshot = output.Snapshot()
+      val newSnapshot = oldSnapshot.bumpVersion
+        .withDefinition(domainRef, domainName, ref1, name1, definition1)
+        .withDefinition(domainRef, domainName, ref2, name2, definition2)
+
+      new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
+        snapshot must throwA(
+          SchemaError.Wrapper(
+            NonEmptyList.of(
+              SchemaError.DefinitionTypeMismatch(domainName, name2, "event", definition1)
+            )
+          )
+        )
+      }
+    }
+
+    "fail if subscriber should subscribe to non-event" in new Fixture {
+      val ref1        = outputs.Entity1Ref
+      val ref2        = outputs.Subscriber1Ref
+      val name1       = inputs.Entity1Ref.name
+      val name2       = inputs.Subscriber1Ref.name
+      val definition1 = outputs.Data.Definition.Record.Entity1
+      val definition2 = outputs.Data.Definition.Subscriber1.copy(events = ListSet(ref1))
+
+      val oldSnapshot = output.Snapshot()
+      val newSnapshot = oldSnapshot.bumpVersion
+        .withDefinition(domainRef, domainName, ref1, name1, definition1)
+        .withDefinition(domainRef, domainName, ref2, name2, definition2)
+
+      new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
+        snapshot must throwA(
+          SchemaError.Wrapper(
+            NonEmptyList.of(
+              SchemaError.DefinitionTypeMismatch(domainName, name2, "event", definition1)
+            )
+          )
+        )
+      }
+    }
+
     "calculate required migrations for changed enum definitions (removed values)" in new Fixture {
       val ref1        = outputs.Enum1Ref
       val ref2        = outputs.Enum2Ref
@@ -129,7 +227,7 @@ class ValidateTransitionSpec extends CompilerSpec {
       }
     }
 
-    "calculate required migrations for changed record definitions (include transitive depensensies)" in new Fixture {
+    "calculate required migrations for changed record definitions (include transitive dependencies)" in new Fixture {
       val ref1        = outputs.Entity1Ref
       val ref2        = outputs.Value1Ref
       val ref3        = outputs.Event1Ref
@@ -174,10 +272,6 @@ class ValidateTransitionSpec extends CompilerSpec {
       }
     }
   }
-
-  // TODO: tuple can only be used inside its own domain as argument
-
-  // TODO: event can only be published by publisher from its own domain
 
   // TODO: check that publishers only contains events
 
