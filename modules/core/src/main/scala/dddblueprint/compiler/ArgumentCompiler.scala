@@ -10,7 +10,7 @@ import io.scalaland.pulp.Cached
   @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
   def apply(argument: input.Argument, createTuple: input.Data.Definition.Record.Tuple => F[Unit]): F[output.Argument] =
     argument match {
-      case ref: input.DefinitionRef => SnapshotOperations[F].translateDefinitionRef(ref).map(r => r: output.Argument)
+      case ref: input.DefinitionRef => ref.translate[F].map(r => r: output.Argument)
 
       case p: input.Data.Primitive => (PrimitivesCompiler(p): output.Argument).pure[F]
 
@@ -25,7 +25,7 @@ import io.scalaland.pulp.Cached
 
       case tuple @ input.Data.Definition.Record.Tuple(ref, _) =>
         for {
-          internalRef <- SnapshotOperations[F].definitionNotExists(ref)
+          internalRef <- ref.requireNotExisted[F]
           _ <- createTuple(tuple)
         } yield internalRef: output.Argument
     }
@@ -33,5 +33,5 @@ import io.scalaland.pulp.Cached
 
 object ArgumentCompiler {
 
-  def apply[F[_]](implicit argumentCompiler: ArgumentCompiler[F]): ArgumentCompiler[F] = argumentCompiler
+  @inline def apply[F[_]](implicit argumentCompiler: ArgumentCompiler[F]): ArgumentCompiler[F] = argumentCompiler
 }

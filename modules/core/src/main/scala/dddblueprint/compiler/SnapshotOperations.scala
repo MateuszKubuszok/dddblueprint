@@ -88,7 +88,7 @@ import monocle.macros.syntax.lens._
       )
     } yield definitionRef
 
-  def definitionExists(ref: input.DefinitionRef): F[output.DefinitionRef] =
+  def requireDefinitionExists(ref: input.DefinitionRef): F[output.DefinitionRef] =
     for {
       internalRef <- translateDefinitionRef(ref)
       definitionExists <- hasDefinition(internalRef)
@@ -96,7 +96,7 @@ import monocle.macros.syntax.lens._
       else ().pure[F]
     } yield internalRef
 
-  def definitionNotExists(ref: input.DefinitionRef): F[output.DefinitionRef] =
+  def requireDefinitionNotExisted(ref: input.DefinitionRef): F[output.DefinitionRef] =
     for {
       internalRef <- translateDefinitionRef(ref)
       definitionExists <- hasDefinition(internalRef)
@@ -107,5 +107,6 @@ import monocle.macros.syntax.lens._
 
 object SnapshotOperations {
 
-  def apply[F[_]](implicit snapshotOperations: SnapshotOperations[F]): SnapshotOperations[F] = snapshotOperations
+  @inline def apply[F[_]](implicit snapshotOperations: SnapshotOperations[F]): SnapshotOperations[F] =
+    snapshotOperations
 }

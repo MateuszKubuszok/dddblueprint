@@ -237,3 +237,9 @@ import scala.collection.immutable.{ ListMap, ListSet }
       .map(_ => ())
   }
 }
+
+object ValidateTransition {
+
+  @inline def apply[F[_]](implicit validateTransition: ValidateTransition[F]): ValidateTransition[F] =
+    validateTransition
+}

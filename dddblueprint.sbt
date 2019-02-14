@@ -5,7 +5,7 @@ lazy val root = project.root
   .setName("dddblueprint")
   .setDescription("Build of dddblueprint")
   .configureRoot
-  .aggregate(core, monix, laws)
+  .aggregate(core, monix, tests)
 
 lazy val core = project.from("core")
   .setName("dddblueprint-common")
@@ -28,9 +28,9 @@ lazy val monix = project.from("monix")
     libraryDependencies ++= Seq(Dependencies.monixEval, Dependencies.monixExecution)
   )
 
-lazy val laws = project.from("laws")
-  .setName("laws")
-  .setDescription("dddblueprint-laws")
+lazy val tests = project.from("tests")
+  .setName("tests")
+  .setDescription("dddblueprint-tests")
   .setInitialImport("laws._")
   .configureModule
   .configureTests(requiresFork = true)

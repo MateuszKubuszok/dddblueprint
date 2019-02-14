@@ -9,24 +9,21 @@ import cats.data.{ NonEmptyList, ValidatedNel }
 import dddblueprint.compiler.MigrationCompiler.Intermediate
 import io.scalaland.pulp.Cached
 
-@Cached class MigrationCompiler[F[_]: Monad: SnapshotState: SchemaErrorHandle](
-  actionCompiler:     ActionCompiler[F],
-  validateTransition: ValidateTransition[F]
-) {
+@Cached class MigrationCompiler[F[_]: Monad: SnapshotState: SchemaErrorHandle: ActionCompiler: ValidateTransition] {
 
   def apply(migration: input.Migration): F[Unit] =
     for {
       oldVersion <- SnapshotState[F].get
       _ <- combineMigrations(migration.actions, oldVersion)
       newVersion <- SnapshotState[F].get
-      _ <- validateTransition(oldVersion, newVersion)
+      _ <- oldVersion.validateTransition[F](newVersion)
     } yield ()
 
   def combineMigrations(actions: List[input.Action], initialState: output.Snapshot): F[Unit] =
     Monad[F].tailRecM[Intermediate, Unit](Intermediate(actions, initialState)) {
       case Intermediate(action :: toProcess, lastValid, currentState) =>
         (for {
-          _ <- actionCompiler(action)
+          _ <- ActionCompiler[F].apply(action)
           newSnapshot <- SnapshotState[F].get
           newState = (currentState, newSnapshot.validNel[SchemaError]).mapN((_, _) => ())
         } yield Intermediate(toProcess, newSnapshot, newState).asLeft[Unit]).handle[NonEmptyList[SchemaError]] {
@@ -44,6 +41,8 @@ import io.scalaland.pulp.Cached
 }
 
 object MigrationCompiler {
+
+  @inline def apply[F[_]](implicit migrationCompiler: MigrationCompiler[F]): MigrationCompiler[F] = migrationCompiler
 
   private final case class Intermediate(actions:      List[input.Action],
                                         lastValid:    output.Snapshot,
