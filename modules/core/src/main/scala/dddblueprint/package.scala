@@ -1,4 +1,4 @@
-import cats.{ Applicative, Eq, Eval, Show, Traverse }
+import cats.{ Applicative, Eq, Eval, Traverse }
 import cats.derived.ShowPretty
 import cats.implicits._
 import monocle.function._
@@ -61,8 +61,38 @@ package object dddblueprint {
     }
   }
 
-  private[dddblueprint] implicit def showListMap[K, V](implicit showMap: ShowPretty[Map[K, V]]): Show[ListMap[K, V]] =
-    listMap => showMap.show(listMap)
-  private[dddblueprint] implicit def showListSet[A](implicit showSet: ShowPretty[Set[A]]): Show[ListSet[A]] =
-    listSet => showSet.show(listSet)
+  private def partitionHeadsLast[A](list: List[A]): (List[A], List[A]) =
+    list.take(list.length - 1) -> list.drop(list.length - 1)
+
+  private[dddblueprint] implicit def showListMap[K: ShowPretty, V: ShowPretty]: ShowPretty[ListMap[K, V]] =
+    listMap => {
+      val (mappedHeads, mappedLast) = partitionHeadsLast(
+        listMap.toList
+          .map {
+            case (k, v) =>
+              val (keyHeads, keyLast) = partitionHeadsLast(implicitly[ShowPretty[K]].showLines(k))
+              val valueLines          = implicitly[ShowPretty[V]].showLines(v)
+
+              keyHeads ++ keyLast.map(_ + " ->") ++ valueLines.map("  " + _)
+          }
+          .map(_.map("  " + _))
+      )
+
+      List("ListMap(") ++ mappedHeads.map(partitionHeadsLast).flatMap {
+        case (heads, last) =>
+          heads ++ last.map(_ + ",")
+      } ++ mappedLast.flatten ++ List(")")
+    }
+
+  private[dddblueprint] implicit def showListSet[A: ShowPretty]: ShowPretty[ListSet[A]] =
+    listSet => {
+      val (mappedHeads, mappedLast) = partitionHeadsLast(listSet.toList.map { a =>
+        implicitly[ShowPretty[A]].showLines(a).map("  " + _)
+      })
+
+      List("ListSet(") ++ mappedHeads.map(partitionHeadsLast).flatMap {
+        case (heads, last) =>
+          heads ++ last.map(_ + ",")
+      } ++ mappedLast.flatten ++ List(")")
+    }
 }
