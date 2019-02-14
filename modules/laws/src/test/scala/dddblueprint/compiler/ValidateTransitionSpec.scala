@@ -273,8 +273,6 @@ class ValidateTransitionSpec extends CompilerSpec {
     }
   }
 
-  // TODO: check that publishers only contains events
-
   private trait Fixture extends Scope {
     val ValidateTransition = Provider.get[ValidateTransition[F]]
   }

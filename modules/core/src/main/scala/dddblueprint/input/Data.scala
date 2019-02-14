@@ -15,12 +15,14 @@ object Argument {
     (a, b) match {
       case (x: DefinitionRef, y:                DefinitionRef)                => x === y
       case (x: Data.Primitive, y:               Data.Primitive)               => x === y
+      case (x: Data.Collection, y:              Data.Collection)              => x === y
       case (x: Data.Definition.Record.Tuple, y: Data.Definition.Record.Tuple) => x === y
       case _ => false
   }
   implicit val show: ShowPretty[Argument] = {
     case x: DefinitionRef                => implicitly[ShowPretty[DefinitionRef]].showLines(x)
     case x: Data.Primitive               => implicitly[ShowPretty[Data.Primitive]].showLines(x)
+    case x: Data.Collection              => implicitly[ShowPretty[Data.Collection]].showLines(x)
     case x: Data.Definition.Record.Tuple => implicitly[ShowPretty[Data.Definition.Record.Tuple]].showLines(x)
   }
 }
@@ -32,9 +34,9 @@ object Argument {
 object Data {
 
   @Semi(Eq, ShowPretty) sealed trait Primitive extends Data with Argument
-  @Semi(Eq, ShowPretty) sealed trait Enumerable extends Data
+  @Semi(Eq, ShowPretty) sealed trait Enumerable
 
-  case object ID extends Primitive
+  case object UUID extends Primitive
   case object Boolean extends Primitive with Enumerable
   case object Int extends Primitive with Enumerable
   case object Long extends Primitive with Enumerable
@@ -44,6 +46,14 @@ object Data {
 
   object Primitive
   object Enumerable
+
+  @Semi(Eq, ShowPretty) sealed trait Collection extends Data with Argument
+  object Collection {
+    @Semi(Eq, ShowPretty) final case class Option(of: Argument) extends Collection
+    @Semi(Eq, ShowPretty) final case class Array(of:  Argument) extends Collection
+    @Semi(Eq, ShowPretty) final case class Set(of:    Argument) extends Collection
+    @Semi(Eq, ShowPretty) final case class Map(key:   Argument, value: Argument) extends Collection
+  }
 
   @Semi(Eq, ShowPretty) sealed abstract class Definition(val ref: DefinitionRef) extends Data
   object Definition {

@@ -7,39 +7,11 @@ import io.scalaland.pulp.Cached
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
-@Cached class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState](snapshotOperations: SnapshotOperations[F]) {
-
-  private def definitionExists(ref: input.DefinitionRef): F[output.DefinitionRef] =
-    for {
-      internalRef <- snapshotOperations.translateDefinitionRef(ref)
-      definitionExists <- snapshotOperations.hasDefinition(internalRef)
-      _ <- if (!definitionExists) SchemaError.definitionMissing[F, Unit](domain = ref.domain.name, name = ref.name)
-      else ().pure[F]
-    } yield internalRef
-
-  private def definitionNotExists(ref: input.DefinitionRef): F[output.DefinitionRef] =
-    for {
-      internalRef <- snapshotOperations.translateDefinitionRef(ref)
-      definitionExists <- snapshotOperations.hasDefinition(internalRef)
-      _ <- if (definitionExists) SchemaError.definitionExists[F, Unit](domain = ref.domain.name, name = ref.name)
-      else ().pure[F]
-    } yield internalRef
-
-  private lazy val mapArgument: input.Argument => F[output.Argument] = {
-    case ref: input.DefinitionRef => snapshotOperations.translateDefinitionRef(ref).map(r => r: output.Argument)
-
-    case p: input.Data.Primitive => (PrimitivesCompiler(p): output.Argument).pure[F]
-
-    case tuple @ input.Data.Definition.Record.Tuple(ref, _) =>
-      for {
-        internalRef <- definitionNotExists(ref)
-        _ <- createDefinition(tuple)
-      } yield internalRef: output.Argument
-  }
+@Cached class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState: SnapshotOperations: ArgumentCompiler] {
 
   private def mapFields(fields: input.Data.Definition.FieldSet): F[output.Data.Definition.FieldSet] =
     Traverse[ListMap[String, ?]].sequence[F, output.Argument](fields.map {
-      case (k, v) => k -> mapArgument(v)
+      case (k, v) => k -> ArgumentCompiler[F].apply(v, createDefinition)
     })
 
   def apply(action: input.Action): F[Unit] = action match {
@@ -54,111 +26,117 @@ import scala.collection.immutable.{ ListMap, ListSet }
   lazy val createDefinition: input.Data.Definition => F[Unit] = {
     case input.Data.Definition.Enum(ref, values, ttype) =>
       for {
-        internalRef <- definitionNotExists(ref)
+        internalRef <- SnapshotOperations[F].definitionNotExists(ref)
         internalType = PrimitivesCompiler.enumerable(ttype)
-        _ <- snapshotOperations.setDefinition(internalRef,
-                                              output.Data.Definition.Enum(
-                                                ref    = internalRef,
-                                                values = values,
-                                                `type` = internalType
-                                              ))
+        _ <- SnapshotOperations[F].setDefinition(internalRef,
+                                                 output.Data.Definition.Enum(
+                                                   ref    = internalRef,
+                                                   values = values,
+                                                   `type` = internalType
+                                                 ))
       } yield ()
 
     case input.Data.Definition.Record.Tuple(ref, fields) =>
       for {
-        internalRef <- definitionNotExists(ref)
+        internalRef <- SnapshotOperations[F].definitionNotExists(ref)
         internalFields <- mapFields(fields)
-        _ <- snapshotOperations.setDefinition(internalRef,
-                                              output.Data.Definition.Record.Tuple(
-                                                ref    = internalRef,
-                                                fields = internalFields
-                                              ))
+        _ <- SnapshotOperations[F].setDefinition(internalRef,
+                                                 output.Data.Definition.Record.Tuple(
+                                                   ref    = internalRef,
+                                                   fields = internalFields
+                                                 ))
       } yield ()
 
     case input.Data.Definition.Record.Entity(ref, fields) =>
       for {
-        internalRef <- definitionNotExists(ref)
+        internalRef <- SnapshotOperations[F].definitionNotExists(ref)
         internalFields <- mapFields(fields)
-        _ <- snapshotOperations.setDefinition(internalRef,
-                                              output.Data.Definition.Record.Entity(
-                                                ref    = internalRef,
-                                                fields = internalFields
-                                              ))
+        _ <- SnapshotOperations[F].setDefinition(internalRef,
+                                                 output.Data.Definition.Record.Entity(
+                                                   ref    = internalRef,
+                                                   fields = internalFields
+                                                 ))
       } yield ()
 
     case input.Data.Definition.Record.Value(ref, fields) =>
       for {
-        internalRef <- definitionNotExists(ref)
+        internalRef <- SnapshotOperations[F].definitionNotExists(ref)
         internalFields <- mapFields(fields)
-        _ <- snapshotOperations.setDefinition(internalRef,
-                                              output.Data.Definition.Record.Value(
-                                                ref    = internalRef,
-                                                fields = internalFields
-                                              ))
+        _ <- SnapshotOperations[F].setDefinition(internalRef,
+                                                 output.Data.Definition.Record.Value(
+                                                   ref    = internalRef,
+                                                   fields = internalFields
+                                                 ))
       } yield ()
 
     case input.Data.Definition.Record.Event(ref, fields) =>
       for {
-        internalRef <- definitionNotExists(ref)
+        internalRef <- SnapshotOperations[F].definitionNotExists(ref)
         internalFields <- mapFields(fields)
-        _ <- snapshotOperations.setDefinition(internalRef,
-                                              output.Data.Definition.Record.Event(
-                                                ref    = internalRef,
-                                                fields = internalFields
-                                              ))
+        _ <- SnapshotOperations[F].setDefinition(internalRef,
+                                                 output.Data.Definition.Record.Event(
+                                                   ref    = internalRef,
+                                                   fields = internalFields
+                                                 ))
       } yield ()
 
     case input.Data.Definition.Service(ref, inputs, outputs) =>
       for {
-        internalRef <- definitionNotExists(ref)
+        internalRef <- SnapshotOperations[F].definitionNotExists(ref)
         internalInput <- Traverse[ListSet]
           .sequence[F, (String, output.Argument)](inputs.to[ListSet].map {
-            case (k, v) => k.pure[F].map2(mapArgument(v))(_ -> _)
+            case (k, v) => k.pure[F].map2(ArgumentCompiler[F].apply(v, createDefinition))(_ -> _)
           })
           .map(set => ListMap(set.toSeq: _*))
-        internalOutput <- Traverse[ListSet].sequence[F, output.DefinitionRef](outputs.map(definitionExists))
-        _ <- snapshotOperations.setDefinition(internalRef,
-                                              output.Data.Definition.Service(
-                                                ref    = internalRef,
-                                                input  = internalInput,
-                                                output = internalOutput
-                                              ))
+        internalOutput <- Traverse[ListSet].sequence[F, output.DefinitionRef](
+          outputs.map(SnapshotOperations[F].definitionExists)
+        )
+        _ <- SnapshotOperations[F].setDefinition(internalRef,
+                                                 output.Data.Definition.Service(
+                                                   ref    = internalRef,
+                                                   input  = internalInput,
+                                                   output = internalOutput
+                                                 ))
       } yield ()
 
     case input.Data.Definition.Publisher(ref, events) =>
       for {
-        internalRef <- definitionNotExists(ref)
-        internalEvents <- Traverse[ListSet].sequence[F, output.DefinitionRef](events.map(definitionExists))
-        _ <- snapshotOperations.setDefinition(internalRef,
-                                              output.Data.Definition.Publisher(
-                                                ref    = internalRef,
-                                                events = internalEvents
-                                              ))
+        internalRef <- SnapshotOperations[F].definitionNotExists(ref)
+        internalEvents <- Traverse[ListSet].sequence[F, output.DefinitionRef](
+          events.map(SnapshotOperations[F].definitionExists)
+        )
+        _ <- SnapshotOperations[F].setDefinition(internalRef,
+                                                 output.Data.Definition.Publisher(
+                                                   ref    = internalRef,
+                                                   events = internalEvents
+                                                 ))
       } yield ()
 
     case input.Data.Definition.Subscriber(ref, events) =>
       for {
-        internalRef <- definitionNotExists(ref)
-        internalEvents <- Traverse[ListSet].sequence[F, output.DefinitionRef](events.map(definitionExists))
-        _ <- snapshotOperations.setDefinition(internalRef,
-                                              output.Data.Definition.Subscriber(
-                                                ref    = internalRef,
-                                                events = internalEvents
-                                              ))
+        internalRef <- SnapshotOperations[F].definitionNotExists(ref)
+        internalEvents <- Traverse[ListSet].sequence[F, output.DefinitionRef](
+          events.map(SnapshotOperations[F].definitionExists)
+        )
+        _ <- SnapshotOperations[F].setDefinition(internalRef,
+                                                 output.Data.Definition.Subscriber(
+                                                   ref    = internalRef,
+                                                   events = internalEvents
+                                                 ))
       } yield ()
   }
 
   lazy val removeDefinition: input.DefinitionRef => F[Unit] = ref =>
     for {
-      internalRef <- definitionExists(ref)
-      _ <- snapshotOperations.removeDefinition(internalRef)
+      internalRef <- SnapshotOperations[F].definitionExists(ref)
+      _ <- SnapshotOperations[F].removeDefinition(internalRef)
     } yield ()
 
   lazy val addEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, newValues) =>
     for {
-      internalRef <- definitionExists(ref)
-      domainRef <- snapshotOperations.definitionToDomain(internalRef)
-      currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
+      internalRef <- SnapshotOperations[F].definitionExists(ref)
+      domainRef <- SnapshotOperations[F].definitionToDomain(internalRef)
+      currentDefinitionOpt <- SnapshotOperations[F].getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(enum @ output.Data.Definition.Enum(_, oldValues, _)) =>
           val common = oldValues.intersect(newValues)
@@ -176,9 +154,9 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
   lazy val removeEnumValues: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, removedValues) =>
     for {
-      internalRef <- definitionExists(ref)
-      domainRef <- snapshotOperations.definitionToDomain(internalRef)
-      currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
+      internalRef <- SnapshotOperations[F].definitionExists(ref)
+      domainRef <- SnapshotOperations[F].definitionToDomain(internalRef)
+      currentDefinitionOpt <- SnapshotOperations[F].getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(enum @ output.Data.Definition.Enum(_, oldValues, _)) =>
           if (removedValues.subsetOf(oldValues)) {
@@ -197,9 +175,9 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
   lazy val addRecordFields: (input.DefinitionRef, input.Data.Definition.FieldSet) => F[Unit] = (ref, newFields) =>
     for {
-      internalRef <- definitionExists(ref)
-      domainRef <- snapshotOperations.definitionToDomain(internalRef)
-      currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
+      internalRef <- SnapshotOperations[F].definitionExists(ref)
+      domainRef <- SnapshotOperations[F].definitionToDomain(internalRef)
+      currentDefinitionOpt <- SnapshotOperations[F].getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
           mapFields(newFields).flatMap { internalNewFields =>
@@ -221,9 +199,9 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
   lazy val removeRecordFields: (input.DefinitionRef, ListSet[String]) => F[Unit] = (ref, removedFields) =>
     for {
-      internalRef <- definitionExists(ref)
-      domainRef <- snapshotOperations.definitionToDomain(internalRef)
-      currentDefinitionOpt <- snapshotOperations.getDefinition(internalRef)
+      internalRef <- SnapshotOperations[F].definitionExists(ref)
+      domainRef <- SnapshotOperations[F].definitionToDomain(internalRef)
+      currentDefinitionOpt <- SnapshotOperations[F].getDefinition(internalRef)
       _ <- currentDefinitionOpt match {
         case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
           if (removedFields.subsetOf(oldFields.keys.to[ListSet])) {

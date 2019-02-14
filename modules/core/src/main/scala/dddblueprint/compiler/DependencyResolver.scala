@@ -7,15 +7,20 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
 object DependencyResolver {
 
-  val argumentToRef: output.Argument => Option[output.DefinitionRef] = {
-    case ref: output.DefinitionRef  => Some(ref)
-    case _:   output.Data.Primitive => None
-    case output.Data.Definition.Record.Tuple(ref, _) => Some(ref)
+  val argumentToRef: output.Argument => ListSet[output.DefinitionRef] = {
+    case ref: output.DefinitionRef  => ListSet(ref)
+    case _:   output.Data.Primitive => ListSet.empty
+    case output.Data.Collection.Option(of)           => argumentToRef(of)
+    case output.Data.Collection.Array(of)            => argumentToRef(of)
+    case output.Data.Collection.Set(of)              => argumentToRef(of)
+    case output.Data.Collection.Map(key, value)      => argumentToRef(key) ++ argumentToRef(value)
+    case output.Data.Definition.Record.Tuple(ref, _) => ListSet(ref)
   }
 
   val dataToDirectDependencies: output.Data => ListSet[output.DefinitionRef] = {
-    case _: output.Data.Primitive | _: output.Data.Enumerable | _: output.Data.Definition.Enum => ListSet.empty
-    case record: output.Data.Definition.Record =>
+    case _: output.Data.Primitive | _: output.Data.Definition.Enum => ListSet.empty
+    case collection: output.Data.Collection => argumentToRef(collection)
+    case record:     output.Data.Definition.Record =>
       val output.Data.Definition.Record.Aux(_, fields, _) = record
       fields.values.to[ListSet].flatMap(argumentToRef(_).toList)
     case output.Data.Definition.Service(_, inputs, outputs) =>
@@ -25,16 +30,39 @@ object DependencyResolver {
   }
 
   val dataToDirectNamedDependencies: output.Data => ListMap[String, output.DefinitionRef] = {
-    case _: output.Data.Primitive | _: output.Data.Enumerable | _: output.Data.Definition.Enum => ListMap.empty
+    case _: output.Data.Primitive | _: output.Data.Definition.Enum => ListMap.empty
+    case output.Data.Collection.Option(of) =>
+      output.Argument.toDataOrRef(of) match {
+        case Left(data) => dataToDirectNamedDependencies(data).map { case (name, ref) => s"option[$name]" -> ref }
+        case Right(ref) => ListMap("option[?]" -> ref) // TODO: name
+      }
+    case output.Data.Collection.Array(of) =>
+      output.Argument.toDataOrRef(of) match {
+        case Left(data) => dataToDirectNamedDependencies(data).map { case (name, ref) => s"array[$name]" -> ref }
+        case Right(ref) => ListMap("array[?]" -> ref) // TODO: name
+      }
+    case output.Data.Collection.Set(of) =>
+      output.Argument.toDataOrRef(of) match {
+        case Left(data) => dataToDirectNamedDependencies(data).map { case (name, ref) => s"set[$name]" -> ref }
+        case Right(ref) => ListMap("set[?]" -> ref) // TODO: name
+      }
+    case output.Data.Collection.Map(key, value) =>
+      (output.Argument.toDataOrRef(key) match {
+        case Left(data) => dataToDirectNamedDependencies(data).map { case (name, ref) => s"mapKey[$name]" -> ref }
+        case Right(ref) => ListMap("mapKey[?]" -> ref) // TODO: name
+      }) ++ (output.Argument.toDataOrRef(value) match {
+        case Left(data) => dataToDirectNamedDependencies(data).map { case (name, ref) => s"mapValue[$name]" -> ref }
+        case Right(ref) => ListMap("mapValue[?]" -> ref) // TODO: name
+      })
     case record: output.Data.Definition.Record =>
       val output.Data.Definition.Record.Aux(_, fields, _) = record
-      fields.map { case (field, ref) => field -> argumentToRef(ref) }.collect {
-        case (field, Some(ref)) => field -> ref
+      fields.map { case (field, ref) => field -> argumentToRef(ref) }.flatMap {
+        case (field, refs) => refs.map(field -> _)
       }
     case output.Data.Definition.Service(_, inputs, outputs) =>
       // TODO: output # -> entity name
-      inputs.map { case (field, ref) => field -> argumentToRef(ref) }.collect {
-        case (field, Some(ref)) => field -> ref
+      inputs.map { case (field, ref) => field -> argumentToRef(ref) }.flatMap {
+        case (field, refs) => refs.map(field -> _)
       } ++
         outputs.zipWithIndex.map { case (r, i) => s"output $i" -> r }
     case output.Data.Definition.Publisher(_, events) =>

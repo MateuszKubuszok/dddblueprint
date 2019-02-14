@@ -20,7 +20,18 @@ object Argument {
   @SuppressWarnings(Array("org.wartremover.warts.Equals")) object Type {
     case object DefinitionRef extends Type
     case object Primitive extends Type
+    case object Collection extends Type
     case object Tuple extends Type
+  }
+
+  val toDataOrRef: Argument => Either[Data, DefinitionRef] = {
+    case ref:       output.DefinitionRef                => Right(ref)
+    case primitive: output.Data.Primitive               => Left(primitive)
+    case option:    output.Data.Collection.Option       => Left(option)
+    case array:     output.Data.Collection.Array        => Left(array)
+    case set:       output.Data.Collection.Set          => Left(set)
+    case map:       output.Data.Collection.Map          => Left(map)
+    case tuple:     output.Data.Definition.Record.Tuple => Left(tuple)
   }
 
   // we aren't relying on derivation here as it leads to scala.UninitializedFieldError because of recursion
@@ -29,12 +40,14 @@ object Argument {
     (a, b) match {
       case (x: DefinitionRef, y:                DefinitionRef)                => x === y
       case (x: Data.Primitive, y:               Data.Primitive)               => x === y
+      case (x: Data.Collection, y:              Data.Collection)              => x === y
       case (x: Data.Definition.Record.Tuple, y: Data.Definition.Record.Tuple) => x === y
       case _ => false
   }
   implicit val show: ShowPretty[Argument] = {
     case x: DefinitionRef                => implicitly[ShowPretty[DefinitionRef]].showLines(x)
     case x: Data.Primitive               => implicitly[ShowPretty[Data.Primitive]].showLines(x)
+    case x: Data.Collection              => implicitly[ShowPretty[Data.Collection]].showLines(x)
     case x: Data.Definition.Record.Tuple => implicitly[ShowPretty[Data.Definition.Record.Tuple]].showLines(x)
   }
 }
@@ -52,9 +65,9 @@ object Data {
 
     def argumentType: Argument.Type = Argument.Type.Primitive
   }
-  @Semi(Eq, ShowPretty) sealed trait Enumerable extends Data // TODO: it doesn't has to extend Data
+  @Semi(Eq, ShowPretty) sealed trait Enumerable
 
-  case object ID extends Primitive
+  case object UUID extends Primitive
   case object Boolean extends Primitive with Enumerable
   case object Int extends Primitive with Enumerable
   case object Long extends Primitive with Enumerable
@@ -64,6 +77,17 @@ object Data {
 
   object Primitive
   object Enumerable
+
+  @Semi(Eq, ShowPretty) sealed trait Collection extends Data with Argument {
+
+    def argumentType: Argument.Type = Argument.Type.Collection
+  }
+  object Collection {
+    @Semi(Eq, ShowPretty) final case class Option(of: Argument) extends Collection
+    @Semi(Eq, ShowPretty) final case class Array(of:  Argument) extends Collection
+    @Semi(Eq, ShowPretty) final case class Set(of:    Argument) extends Collection
+    @Semi(Eq, ShowPretty) final case class Map(key:   Argument, value: Argument) extends Collection
+  }
 
   @Semi(Eq, ShowPretty) sealed abstract class Definition(val ref: DefinitionRef) extends Data
   object Definition {
