@@ -4,7 +4,7 @@ package compiler
 import cats.effect.Sync
 import org.specs2.mutable.Specification
 
-trait CompilerSpec extends Specification {
+trait CompilerSpec extends Specification with logback.LogbackLogging.Module {
 
   val inputs  = input.Fixtures
   val outputs = output.Fixtures

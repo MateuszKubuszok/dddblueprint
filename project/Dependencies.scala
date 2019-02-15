@@ -44,6 +44,8 @@ object Dependencies {
   val pureConfig         = "com.github.pureconfig"        %% "pureconfig"                % "0.9.2"  excludeAll (
           ExclusionRule(   "org.scala-lang")
   )
+  // parsing
+  val fastparse          = "com.lihaoyi"                  %% "fastparse"                 % "2.1.0"
   // logging
   val scalaLogging       = "com.typesafe.scala-logging"   %% "scala-logging"             % "3.9.0"
   val logback            = "ch.qos.logback"               %  "logback-classic"           % "1.2.3"
@@ -67,9 +69,7 @@ trait Dependencies {
     // functional libraries
     cats, catsEffect, catsMTL, catnip, chimney, monocle, monocleMacro, pulp, shapeless,
     // config
-    scopt, scalaConfig, pureConfig,
-    // logging
-    scalaLogging, logback
+    scopt, scalaConfig, pureConfig
   )
 
   val testDeps = Seq(catsLaws, spec2Core, spec2Mock, spec2Scalacheck)
