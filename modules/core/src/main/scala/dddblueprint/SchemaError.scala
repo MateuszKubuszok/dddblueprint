@@ -1,5 +1,4 @@
 package dddblueprint
-package compiler
 
 import java.util.UUID
 
@@ -8,6 +7,7 @@ import cats.data.NonEmptyList
 import cats.derived.ShowPretty
 import cats.implicits._
 import cats.mtl.implicits._
+import dddblueprint.compiler.SchemaErrorRaise
 import io.scalaland.catnip.Semi
 import monocle.macros._
 import monocle.Prism

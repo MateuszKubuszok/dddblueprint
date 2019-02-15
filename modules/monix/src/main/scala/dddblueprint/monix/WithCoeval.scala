@@ -4,7 +4,6 @@ package monix
 import cats.implicits._
 import cats.data.{ NonEmptyList, StateT }
 import cats.{ Applicative, ApplicativeError, Functor }
-import compiler.SchemaError
 import _root_.monix.eval.Coeval
 
 object WithCoeval {

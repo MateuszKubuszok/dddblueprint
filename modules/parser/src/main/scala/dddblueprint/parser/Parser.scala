@@ -8,7 +8,6 @@ import cats.effect.Sync
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
-// scalastyle:off public.methods.have.type
 // scalastyle:off method.name
 @SuppressWarnings(Array("org.wartremover.warts.Equals", "org.wartremover.warts.Null", "org.wartremover.warts.Var"))
 private[parser] object Parser {

@@ -5,7 +5,6 @@ import cats.implicits._
 import _root_.monix.eval.Task
 import cats.data.{ NonEmptyList, StateT }
 import cats.{ Applicative, ApplicativeError, Functor }
-import compiler.SchemaError
 
 object WithTaskState {
 
