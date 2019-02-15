@@ -38,14 +38,21 @@ import scala.collection.immutable.{ ListMap, ListSet }
     }
   }
 
-  // TODO: make dependency resolution parallel or sth
   def apply(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] =
+    // first - check if types matches and no definition is missing
     removedAreNotUsed(newVersion)
       .map2(typesMatches(oldVersion, newVersion))(_ |+| _)
-      .map2(resolveDependencies(newVersion).flatMap(pubsubDependsOnlyOnEvents(newVersion, _)))(_ |+| _)
-      .map2(resolveDependencies(newVersion).flatMap(eventPublishedInTheirDomain(newVersion, _)))(_ |+| _)
-      .map2(migrationsForEnums(oldVersion, newVersion))(_ |+| _)
-      .map2(resolveDependencies(newVersion).flatMap(migrationsForRecords(oldVersion, newVersion, _)))(_ |+| _)
+      // then calculate dependencies
+      .flatMap { _ =>
+        resolveDependencies(newVersion)
+      }
+      // do normal checking
+      .flatMap { dependencies =>
+        pubsubDependsOnlyOnEvents(newVersion, dependencies)
+          .map2(eventPublishedInTheirDomain(newVersion, dependencies))(_ |+| _)
+          .map2(migrationsForEnums(oldVersion, newVersion))(_ |+| _)
+          .map2(migrationsForRecords(oldVersion, newVersion, dependencies))(_ |+| _)
+      }
 
   def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
     val isDefined = newVersion.definitions.keySet.contains _
