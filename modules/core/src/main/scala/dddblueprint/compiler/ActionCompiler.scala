@@ -10,9 +10,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
 @Cached class ActionCompiler[F[_]: Monad: SchemaErrorRaise: SnapshotState: SnapshotOperations: ArgumentCompiler] {
 
   private def mapFields(fields: input.Data.Definition.FieldSet): F[output.Data.Definition.FieldSet] =
-    Traverse[ListMap[String, ?]].sequence[F, output.Argument](fields.map {
-      case (k, v) => k -> v.compile[F](createDefinition)
-    })
+    Traverse[ListMap[String, ?]].sequence[F, output.Argument](fields.map { case (k, v) => k -> v.compile[F] })
 
   def apply(action: input.Action): F[Unit] = action match {
     case input.Action.CreateDefinition(definition)           => createDefinition(definition)
@@ -36,18 +34,6 @@ import scala.collection.immutable.{ ListMap, ListSet }
             ref    = internalRef,
             values = values,
             `type` = internalType
-          )
-        )
-      } yield ()
-
-    case input.Data.Definition.Record.Tuple(ref, fields) =>
-      for {
-        internalRef <- ref.requireNotExisted[F]
-        internalFields <- mapFields(fields)
-        _ <- internalRef.setDefinition[F](
-          output.Data.Definition.Record.Tuple(
-            ref    = internalRef,
-            fields = internalFields
           )
         )
       } yield ()
@@ -93,7 +79,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
         internalRef <- ref.requireNotExisted[F]
         internalInput <- Traverse[ListSet]
           .sequence[F, (String, output.Argument)](inputs.to[ListSet].map {
-            case (k, v) => k.pure[F].map2(v.compile[F](createDefinition))(_ -> _)
+            case (k, v) => k.pure[F].map2(v.compile[F])(_ -> _)
           })
           .map(set => ListMap(set.toSeq: _*))
         internalOutput <- Traverse[ListSet].sequence[F, output.DefinitionRef](outputs.map(_.requireExists[F]))

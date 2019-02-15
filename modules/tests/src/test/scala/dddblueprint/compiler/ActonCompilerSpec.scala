@@ -22,16 +22,6 @@ class ActonCompilerSpec extends CompilerSpec {
       }
     }
 
-    "correctly compile tuple definition" in new Fixture {
-      val definition       = inputs.Data.Definition.Record.Tuple1
-      val createDefinition = input.Action.CreateDefinition(definition)
-
-      new TestSnapshot(ActionCompiler(createDefinition))() {
-        val internalRef = definitionRefIso.get(definition.ref)
-        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Tuple1.lens(_.ref).set(internalRef)
-      }
-    }
-
     "correctly compile entity definition" in new Fixture {
       val definition       = inputs.Data.Definition.Record.Entity1
       val createDefinition = input.Action.CreateDefinition(definition)
@@ -234,7 +224,7 @@ class ActonCompilerSpec extends CompilerSpec {
           inputs.Domain1Ref.name,
           outputs.Enum1Ref,
           inputs.Enum1Ref.name,
-          outputs.Data.Definition.Record.Tuple1
+          outputs.Data.Definition.Record.Value1
         )
       val addEnumValues = input.Action.AddEnumValues(inputs.Enum1Ref, ListSet("c", "d"))
 
@@ -244,9 +234,9 @@ class ActonCompilerSpec extends CompilerSpec {
             NonEmptyList.of(
               SchemaError.DefinitionTypeMismatch(
                 inputs.Domain1Ref.name,
-                inputs.Tuple1Ref.name,
+                inputs.Value1Ref.name,
                 "enum",
-                outputs.Data.Definition.Record.Tuple1
+                outputs.Data.Definition.Record.Value1
               )
             )
           )
@@ -319,7 +309,7 @@ class ActonCompilerSpec extends CompilerSpec {
           inputs.Domain1Ref.name,
           outputs.Enum1Ref,
           inputs.Enum1Ref.name,
-          outputs.Data.Definition.Record.Tuple1
+          outputs.Data.Definition.Record.Value1
         )
       val removeEnumValues = input.Action.RemoveEnumValues(inputs.Enum1Ref, ListSet("a", "c"))
 
@@ -328,9 +318,9 @@ class ActonCompilerSpec extends CompilerSpec {
           SchemaError.Wrapper(
             NonEmptyList.of(
               SchemaError.DefinitionTypeMismatch(inputs.Domain1Ref.name,
-                                                 inputs.Tuple1Ref.name,
+                                                 inputs.Value1Ref.name,
                                                  "enum",
-                                                 outputs.Data.Definition.Record.Tuple1)
+                                                 outputs.Data.Definition.Record.Value1)
             )
           )
         )
@@ -400,7 +390,7 @@ class ActonCompilerSpec extends CompilerSpec {
           inputs.Domain1Ref.name,
           outputs.Enum1Ref,
           inputs.Enum1Ref.name,
-          outputs.Data.Definition.Record.Tuple1
+          outputs.Data.Definition.Record.Value1
         )
       val renameEnumValues = input.Action.RenameEnumValues(inputs.Enum1Ref, ListMap("a" -> "c"))
 
@@ -409,9 +399,9 @@ class ActonCompilerSpec extends CompilerSpec {
           SchemaError.Wrapper(
             NonEmptyList.of(
               SchemaError.DefinitionTypeMismatch(inputs.Domain1Ref.name,
-                                                 inputs.Tuple1Ref.name,
+                                                 inputs.Value1Ref.name,
                                                  "enum",
-                                                 outputs.Data.Definition.Record.Tuple1)
+                                                 outputs.Data.Definition.Record.Value1)
             )
           )
         )
@@ -440,15 +430,15 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
-          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int))
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
+          outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> output.Data.Int))
         )
-      val addRecordFields = input.Action.AddRecordFields(inputs.Tuple1Ref, ListMap("b" -> input.Data.Double))
+      val addRecordFields = input.Action.AddRecordFields(inputs.Value1Ref, ListMap("b" -> input.Data.Double))
 
       new TestSnapshot(ActionCompiler(addRecordFields))(snapshot) {
         val internalRef = definitionRefIso.get(addRecordFields.definition)
-        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Tuple1
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Value1
           .withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
       }
     }
@@ -459,17 +449,17 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
-          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int))
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
+          outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> output.Data.Int))
         )
       val addRecordFields =
-        input.Action.AddRecordFields(inputs.Tuple1Ref, ListMap("a" -> input.Data.Int, "b" -> input.Data.Double))
+        input.Action.AddRecordFields(inputs.Value1Ref, ListMap("a" -> input.Data.Int, "b" -> input.Data.Double))
 
       new TestSnapshot(ActionCompiler(addRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(SchemaError.RecordFieldsExist(inputs.Domain1Ref.name, inputs.Tuple1Ref.name, ListSet("a")))
+            NonEmptyList.of(SchemaError.RecordFieldsExist(inputs.Domain1Ref.name, inputs.Value1Ref.name, ListSet("a")))
           )
         )
       }
@@ -481,18 +471,18 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
           outputs.Data.Definition.Enum1
         )
-      val addRecordFields = input.Action.AddRecordFields(inputs.Tuple1Ref, ListMap("b" -> input.Data.Double))
+      val addRecordFields = input.Action.AddRecordFields(inputs.Value1Ref, ListMap("b" -> input.Data.Double))
 
       new TestSnapshot(ActionCompiler(addRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
               SchemaError.DefinitionTypeMismatch(inputs.Domain1Ref.name,
-                                                 inputs.Tuple1Ref.name,
+                                                 inputs.Value1Ref.name,
                                                  "record",
                                                  outputs.Data.Definition.Enum1)
             )
@@ -503,12 +493,12 @@ class ActonCompilerSpec extends CompilerSpec {
 
     "raise error if record doesn't exist" in new Fixture {
       val snapshot        = output.Snapshot().withDomainRef(outputs.Domain1Ref, inputs.Domain1Ref.name)
-      val addRecordFields = input.Action.AddRecordFields(inputs.Tuple1Ref, ListMap("b" -> input.Data.Double))
+      val addRecordFields = input.Action.AddRecordFields(inputs.Value1Ref, ListMap("b" -> input.Data.Double))
 
       new TestSnapshot(ActionCompiler(addRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Tuple1Ref.name))
+            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Value1Ref.name))
           )
         )
       }
@@ -523,15 +513,15 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
-          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
+          outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
         )
-      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Tuple1Ref, ListSet("b"))
+      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Value1Ref, ListSet("b"))
 
       new TestSnapshot(ActionCompiler(removeRecordFields))(snapshot) {
         val internalRef = definitionRefIso.get(removeRecordFields.definition)
-        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Tuple1
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Value1
           .withFields(ListMap("a" -> output.Data.Int))
       }
     }
@@ -542,17 +532,17 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
-          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
+          outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
         )
-      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Tuple1Ref, ListSet("c"))
+      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Value1Ref, ListSet("c"))
 
       new TestSnapshot(ActionCompiler(removeRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
-              SchemaError.RecordFieldsMissing(inputs.Domain1Ref.name, inputs.Tuple1Ref.name, ListSet("c"))
+              SchemaError.RecordFieldsMissing(inputs.Domain1Ref.name, inputs.Value1Ref.name, ListSet("c"))
             )
           )
         )
@@ -565,18 +555,18 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
           outputs.Data.Definition.Enum1
         )
-      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Tuple1Ref, ListSet("c"))
+      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Value1Ref, ListSet("c"))
 
       new TestSnapshot(ActionCompiler(removeRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
               SchemaError.DefinitionTypeMismatch(inputs.Domain1Ref.name,
-                                                 inputs.Tuple1Ref.name,
+                                                 inputs.Value1Ref.name,
                                                  "record",
                                                  outputs.Data.Definition.Enum1)
             )
@@ -588,12 +578,12 @@ class ActonCompilerSpec extends CompilerSpec {
     "raise error if record doesn't exist" in new Fixture {
       val snapshot = output.Snapshot().withDomainRef(outputs.Domain1Ref, inputs.Domain1Ref.name)
 
-      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Tuple1Ref, ListSet("b"))
+      val removeRecordFields = input.Action.RemoveRecordFields(inputs.Value1Ref, ListSet("b"))
 
       new TestSnapshot(ActionCompiler(removeRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Tuple1Ref.name))
+            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Value1Ref.name))
           )
         )
       }
@@ -608,15 +598,15 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
-          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
+          outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
         )
-      val renameRecordFields = input.Action.RenameRecordFields(inputs.Tuple1Ref, ListMap("a" -> "c"))
+      val renameRecordFields = input.Action.RenameRecordFields(inputs.Value1Ref, ListMap("a" -> "c"))
 
       new TestSnapshot(ActionCompiler(renameRecordFields))(snapshot) {
         val internalRef = definitionRefIso.get(renameRecordFields.definition)
-        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Tuple1
+        snapshot.definitions(internalRef) === outputs.Data.Definition.Record.Value1
           .withFields(ListMap("c" -> output.Data.Int, "b" -> output.Data.Double))
       }
     }
@@ -627,17 +617,17 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
-          outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
+          outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> output.Data.Int, "b" -> output.Data.Double))
         )
-      val renameRecordFields = input.Action.RenameRecordFields(inputs.Tuple1Ref, ListMap("c" -> "d"))
+      val renameRecordFields = input.Action.RenameRecordFields(inputs.Value1Ref, ListMap("c" -> "d"))
 
       new TestSnapshot(ActionCompiler(renameRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
-              SchemaError.RecordFieldsMissing(inputs.Domain1Ref.name, inputs.Tuple1Ref.name, ListSet("c"))
+              SchemaError.RecordFieldsMissing(inputs.Domain1Ref.name, inputs.Value1Ref.name, ListSet("c"))
             )
           )
         )
@@ -650,18 +640,18 @@ class ActonCompilerSpec extends CompilerSpec {
         .withDefinition(
           outputs.Domain1Ref,
           inputs.Domain1Ref.name,
-          outputs.Tuple1Ref,
-          inputs.Tuple1Ref.name,
+          outputs.Value1Ref,
+          inputs.Value1Ref.name,
           outputs.Data.Definition.Enum1
         )
-      val renameRecordFields = input.Action.RenameRecordFields(inputs.Tuple1Ref, ListMap("a" -> "e"))
+      val renameRecordFields = input.Action.RenameRecordFields(inputs.Value1Ref, ListMap("a" -> "e"))
 
       new TestSnapshot(ActionCompiler(renameRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
             NonEmptyList.of(
               SchemaError.DefinitionTypeMismatch(inputs.Domain1Ref.name,
-                                                 inputs.Tuple1Ref.name,
+                                                 inputs.Value1Ref.name,
                                                  "record",
                                                  outputs.Data.Definition.Enum1)
             )
@@ -673,12 +663,12 @@ class ActonCompilerSpec extends CompilerSpec {
     "raise error if record doesn't exist" in new Fixture {
       val snapshot = output.Snapshot().withDomainRef(outputs.Domain1Ref, inputs.Domain1Ref.name)
 
-      val renameRecordFields = input.Action.RenameRecordFields(inputs.Tuple1Ref, ListMap("a" -> "e"))
+      val renameRecordFields = input.Action.RenameRecordFields(inputs.Value1Ref, ListMap("a" -> "e"))
 
       new TestSnapshot(ActionCompiler(renameRecordFields))(snapshot) {
         snapshot must throwA(
           SchemaError.Wrapper(
-            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Tuple1Ref.name))
+            NonEmptyList.of(SchemaError.DefinitionMissing(inputs.Domain1Ref.name, inputs.Value1Ref.name))
           )
         )
       }

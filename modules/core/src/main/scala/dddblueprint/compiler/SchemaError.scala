@@ -43,8 +43,6 @@ object SchemaError {
   final case class FieldDefinitionMissing(domain:    String, name: String, field:    String) extends SchemaError
   final case class ArgumentDefinitionMissing(domain: String, name: String, argument: String) extends SchemaError
 
-  final case class TupleUsedOutsideDomain(domain: String, name: String, where: output.Data.Definition)
-      extends SchemaError
   final case class EventPublishedOutsideDomain(domain: String, name: String, where: output.Data.Definition.Publisher)
       extends SchemaError
 
@@ -83,4 +81,9 @@ object SchemaError {
     NonEmptyList.one(FieldDefinitionMissing(domain, name, field): SchemaError).raise[F, A]
   def argumentDefinitionMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, argument: String): F[A] =
     NonEmptyList.one(ArgumentDefinitionMissing(domain, name, argument): SchemaError).raise[F, A]
+
+  def eventPublishedOutsideDomain[F[_]: SchemaErrorRaise, A](domain: String,
+                                                             name:  String,
+                                                             where: output.Data.Definition.Publisher): F[A] =
+    NonEmptyList.one(EventPublishedOutsideDomain(domain, name, where): SchemaError).raise[F, A]
 }

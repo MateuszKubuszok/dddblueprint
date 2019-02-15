@@ -24,31 +24,21 @@ object Argument {
     case object Tuple extends Type
   }
 
-  val toDataOrRef: Argument => Either[Data, DefinitionRef] = {
-    case ref:       output.DefinitionRef                => Right(ref)
-    case primitive: output.Data.Primitive               => Left(primitive)
-    case option:    output.Data.Collection.Option       => Left(option)
-    case array:     output.Data.Collection.Array        => Left(array)
-    case set:       output.Data.Collection.Set          => Left(set)
-    case map:       output.Data.Collection.Map          => Left(map)
-    case tuple:     output.Data.Definition.Record.Tuple => Left(tuple)
-  }
-
   // we aren't relying on derivation here as it leads to scala.UninitializedFieldError because of recursion
 
   implicit val eq: Eq[Argument] = (a: Argument, b: Argument) =>
     (a, b) match {
-      case (x: DefinitionRef, y:                DefinitionRef)                => x === y
-      case (x: Data.Primitive, y:               Data.Primitive)               => x === y
-      case (x: Data.Collection, y:              Data.Collection)              => x === y
-      case (x: Data.Definition.Record.Tuple, y: Data.Definition.Record.Tuple) => x === y
+      case (x: DefinitionRef, y:   DefinitionRef)   => x === y
+      case (x: Data.Primitive, y:  Data.Primitive)  => x === y
+      case (x: Data.Collection, y: Data.Collection) => x === y
+      case (x: Data.Tuple, y:      Data.Tuple)      => x === y
       case _ => false
   }
   implicit val show: ShowPretty[Argument] = {
-    case x: DefinitionRef                => implicitly[ShowPretty[DefinitionRef]].showLines(x)
-    case x: Data.Primitive               => implicitly[ShowPretty[Data.Primitive]].showLines(x)
-    case x: Data.Collection              => implicitly[ShowPretty[Data.Collection]].showLines(x)
-    case x: Data.Definition.Record.Tuple => implicitly[ShowPretty[Data.Definition.Record.Tuple]].showLines(x)
+    case x: DefinitionRef   => implicitly[ShowPretty[DefinitionRef]].showLines(x)
+    case x: Data.Primitive  => implicitly[ShowPretty[Data.Primitive]].showLines(x)
+    case x: Data.Collection => implicitly[ShowPretty[Data.Collection]].showLines(x)
+    case x: Data.Tuple      => implicitly[ShowPretty[Data.Tuple]].showLines(x)
   }
 }
 
@@ -89,6 +79,11 @@ object Data {
     @Semi(Eq, ShowPretty) final case class Map(key:   Argument, value: Argument) extends Collection
   }
 
+  @Semi(Eq, ShowPretty) final case class Tuple(arguments: ListSet[Argument]) extends Argument {
+
+    def argumentType: Argument.Type = Argument.Type.Tuple
+  }
+
   @Semi(Eq, ShowPretty) sealed abstract class Definition(val ref: DefinitionRef) extends Data
   object Definition {
 
@@ -114,7 +109,6 @@ object Data {
 
       @Semi(Eq, Show) sealed trait Type extends ADT
       object Type {
-        case object Tuple extends Type
         case object Entity extends Type
         case object Value extends Type
         case object Event extends Type
@@ -124,7 +118,6 @@ object Data {
       object Aux {
 
         def apply(ref: DefinitionRef, fields: FieldSet, `type`: Type): Record = `type` match {
-          case Type.Tuple  => Tuple(ref, fields)
           case Type.Entity => Entity(ref, fields)
           case Type.Value  => Value(ref, fields)
           case Type.Event  => Event(ref, fields)
@@ -132,15 +125,6 @@ object Data {
 
         def unapply(record: Record): Option[(DefinitionRef, FieldSet, Type)] =
           Some((record.ref, record.fields, record.`type`))
-      }
-
-      @Semi(Eq, ShowPretty) final case class Tuple(override val ref: DefinitionRef, override val fields: FieldSet)
-          extends Record(ref, fields, Type.Tuple)
-          with Argument {
-
-        def argumentType: Argument.Type = Argument.Type.Tuple
-
-        def withFields(newFields: FieldSet): Tuple = copy(fields = newFields)
       }
 
       @Semi(Eq, ShowPretty) final case class Entity(override val ref: DefinitionRef, override val fields: FieldSet)

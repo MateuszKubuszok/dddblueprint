@@ -18,11 +18,11 @@ class ValidateTransitionSpec extends CompilerSpec {
 
     "pass if none of removed definitions is used (all definitions exist)" in new Fixture {
       val ref1        = outputs.Enum1Ref
-      val ref2        = outputs.Tuple1Ref
+      val ref2        = outputs.Value1Ref
       val name1       = inputs.Enum1Ref.name
-      val name2       = inputs.Tuple1Ref.name
+      val name2       = inputs.Value1Ref.name
       val definition1 = outputs.Data.Definition.Enum1
-      val definition2 = outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> ref1))
+      val definition2 = outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> ref1))
 
       val oldSnapshot = output.Snapshot().withDomainRef(domainRef, domainName)
       val newSnapshot = oldSnapshot.bumpVersion
@@ -37,9 +37,9 @@ class ValidateTransitionSpec extends CompilerSpec {
 
     "fail if some of removed definitions is used (not all definitions exist)" in new Fixture {
       val ref1        = outputs.Enum1Ref
-      val ref2        = outputs.Tuple1Ref
-      val name2       = inputs.Tuple1Ref.name
-      val definition2 = outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> ref1))
+      val ref2        = outputs.Value1Ref
+      val name2       = inputs.Value1Ref.name
+      val definition2 = outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> ref1))
 
       val oldSnapshot = output.Snapshot().withDomainRef(domainRef, domainName)
       val newSnapshot = oldSnapshot.bumpVersion.withDefinition(domainRef, domainName, ref2, name2, definition2)
@@ -53,11 +53,11 @@ class ValidateTransitionSpec extends CompilerSpec {
 
     "pass if types matches between versions" in new Fixture {
       val ref1        = outputs.Enum1Ref
-      val ref2        = outputs.Tuple1Ref
+      val ref2        = outputs.Value1Ref
       val name1       = inputs.Enum1Ref.name
-      val name2       = inputs.Tuple1Ref.name
+      val name2       = inputs.Value1Ref.name
       val definition1 = outputs.Data.Definition.Enum1
-      val definition2 = outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> ref1))
+      val definition2 = outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> ref1))
 
       val oldSnapshot = output
         .Snapshot()
@@ -75,11 +75,11 @@ class ValidateTransitionSpec extends CompilerSpec {
 
     "fail if types doesn't match between versions" in new Fixture {
       val ref1        = outputs.Enum1Ref
-      val ref2        = outputs.Tuple1Ref
+      val ref2        = outputs.Value1Ref
       val name1       = inputs.Enum1Ref.name
-      val name2       = inputs.Tuple1Ref.name
+      val name2       = inputs.Value1Ref.name
       val definition1 = outputs.Data.Definition.Enum1
-      val definition2 = outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> ref1))
+      val definition2 = outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> ref1))
 
       val oldSnapshot = output
         .Snapshot()
@@ -95,30 +95,6 @@ class ValidateTransitionSpec extends CompilerSpec {
             NonEmptyList.of(
               SchemaError.DefinitionTypeMismatch(domainName, name1, "enum", definition2),
               SchemaError.DefinitionTypeMismatch(domainName, name2, "record", definition1)
-            )
-          )
-        )
-      }
-    }
-
-    "fail if tuple is used outside its domain" in new Fixture {
-      val ref1        = outputs.Tuple1Ref
-      val ref2        = outputs.Tuple2Ref
-      val name1       = inputs.Tuple1Ref.name
-      val name2       = inputs.Tuple2Ref.name
-      val definition1 = outputs.Data.Definition.Record.Tuple1
-      val definition2 = outputs.Data.Definition.Record.Tuple2.withFields(ListMap("a" -> ref1))
-
-      val oldSnapshot = output.Snapshot()
-      val newSnapshot = oldSnapshot.bumpVersion
-        .withDefinition(domainRef, domainName, ref1, name1, definition1)
-        .withDefinition(domain2Ref, domain2Name, ref2, name2, definition2)
-
-      new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
-        snapshot must throwA(
-          SchemaError.Wrapper(
-            NonEmptyList.of(
-              SchemaError.TupleUsedOutsideDomain(domainName, name1, definition2)
             )
           )
         )
@@ -200,15 +176,15 @@ class ValidateTransitionSpec extends CompilerSpec {
     "calculate required migrations for changed enum definitions (removed values)" in new Fixture {
       val ref1        = outputs.Enum1Ref
       val ref2        = outputs.Enum2Ref
-      val ref3        = outputs.Tuple1Ref
+      val ref3        = outputs.Value1Ref
       val ref4        = outputs.Service1Ref
       val name1       = inputs.Enum1Ref.name
       val name2       = inputs.Enum2Ref.name
-      val name3       = inputs.Tuple1Ref.name
+      val name3       = inputs.Value1Ref.name
       val name4       = inputs.Service1Ref.name
       val definition1 = outputs.Data.Definition.Enum1.withValues(ListSet("a", "b"))
       val definition2 = outputs.Data.Definition.Enum2.withValues(ListSet("a", "b"))
-      val definition3 = outputs.Data.Definition.Record.Tuple1.withFields(ListMap("a" -> ref1, "b" -> ref2))
+      val definition3 = outputs.Data.Definition.Record.Value1.withFields(ListMap("a" -> ref1, "b" -> ref2))
       val definition4 =
         outputs.Data.Definition.Service1.copy(input = ListMap("a" -> ref1, "b" -> ref2), output = ListSet(ref1, ref2))
 

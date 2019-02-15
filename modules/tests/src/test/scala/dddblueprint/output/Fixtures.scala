@@ -11,9 +11,6 @@ object Fixtures {
   val Enum1Ref = output.DefinitionRef()
   val Enum2Ref = output.DefinitionRef()
 
-  val Tuple1Ref = output.DefinitionRef()
-  val Tuple2Ref = output.DefinitionRef()
-
   val Entity1Ref = output.DefinitionRef()
   val Entity2Ref = output.DefinitionRef()
 
@@ -40,9 +37,6 @@ object Fixtures {
       val Enum2 = output.Data.Definition.Enum(Enum2Ref, ListSet("1", "2"), output.Data.Int)
 
       object Record {
-
-        val Tuple1 = output.Data.Definition.Record.Tuple(Tuple1Ref, ListMap.empty)
-        val Tuple2 = output.Data.Definition.Record.Tuple(Tuple2Ref, ListMap.empty)
 
         val Entity1 = output.Data.Definition.Record.Entity(Entity1Ref, ListMap.empty)
         val Entity2 = output.Data.Definition.Record.Entity(Entity2Ref, ListMap.empty)

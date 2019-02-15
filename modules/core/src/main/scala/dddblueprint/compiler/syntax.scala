@@ -5,10 +5,8 @@ trait syntax {
 
   implicit class InputArgumentOps(val argument: input.Argument) {
 
-    def compile[F[_]: ArgumentCompiler](
-      createTuple: input.Data.Definition.Record.Tuple => F[Unit]
-    ): F[output.Argument] =
-      ArgumentCompiler[F].apply(argument, createTuple)
+    def compile[F[_]: ArgumentCompiler]: F[output.Argument] =
+      ArgumentCompiler[F].apply(argument)
   }
 
   implicit class InputDefinitionRefOps(val definitionRef: input.DefinitionRef) {

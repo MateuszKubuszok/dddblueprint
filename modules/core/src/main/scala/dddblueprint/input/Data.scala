@@ -13,17 +13,17 @@ object Argument {
 
   implicit val eq: Eq[Argument] = (a: Argument, b: Argument) =>
     (a, b) match {
-      case (x: DefinitionRef, y:                DefinitionRef)                => x === y
-      case (x: Data.Primitive, y:               Data.Primitive)               => x === y
-      case (x: Data.Collection, y:              Data.Collection)              => x === y
-      case (x: Data.Definition.Record.Tuple, y: Data.Definition.Record.Tuple) => x === y
+      case (x: DefinitionRef, y:   DefinitionRef)   => x === y
+      case (x: Data.Primitive, y:  Data.Primitive)  => x === y
+      case (x: Data.Collection, y: Data.Collection) => x === y
+      case (x: Data.Tuple, y:      Data.Tuple)      => x === y
       case _ => false
   }
   implicit val show: ShowPretty[Argument] = {
-    case x: DefinitionRef                => implicitly[ShowPretty[DefinitionRef]].showLines(x)
-    case x: Data.Primitive               => implicitly[ShowPretty[Data.Primitive]].showLines(x)
-    case x: Data.Collection              => implicitly[ShowPretty[Data.Collection]].showLines(x)
-    case x: Data.Definition.Record.Tuple => implicitly[ShowPretty[Data.Definition.Record.Tuple]].showLines(x)
+    case x: DefinitionRef   => implicitly[ShowPretty[DefinitionRef]].showLines(x)
+    case x: Data.Primitive  => implicitly[ShowPretty[Data.Primitive]].showLines(x)
+    case x: Data.Collection => implicitly[ShowPretty[Data.Collection]].showLines(x)
+    case x: Data.Tuple      => implicitly[ShowPretty[Data.Tuple]].showLines(x)
   }
 }
 
@@ -55,6 +55,8 @@ object Data {
     @Semi(Eq, ShowPretty) final case class Map(key:   Argument, value: Argument) extends Collection
   }
 
+  @Semi(Eq, ShowPretty) final case class Tuple(arguments: ListSet[Argument]) extends Argument
+
   @Semi(Eq, ShowPretty) sealed abstract class Definition(val ref: DefinitionRef) extends Data
   object Definition {
 
@@ -69,10 +71,6 @@ object Data {
 
     @Semi(Eq, ShowPretty) sealed abstract class Record(override val ref: DefinitionRef) extends Definition(ref)
     object Record {
-
-      @Semi(Eq, ShowPretty) final case class Tuple(override val ref: DefinitionRef, fields: FieldSet)
-          extends Record(ref)
-          with Argument
 
       @Semi(Eq, ShowPretty) final case class Entity(override val ref: DefinitionRef, fields: FieldSet)
           extends Record(ref)

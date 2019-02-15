@@ -43,7 +43,6 @@ import scala.collection.immutable.{ ListMap, ListSet }
     removedAreNotUsed(newVersion)
       .map2(typesMatches(oldVersion, newVersion))(_ |+| _)
       .map2(resolveDependencies(newVersion).flatMap(pubsubDependsOnlyOnEvents(newVersion, _)))(_ |+| _)
-      .map2(resolveDependencies(newVersion).flatMap(tupleInTheirDomain(newVersion, _)))(_ |+| _)
       .map2(resolveDependencies(newVersion).flatMap(eventPublishedInTheirDomain(newVersion, _)))(_ |+| _)
       .map2(migrationsForEnums(oldVersion, newVersion))(_ |+| _)
       .map2(resolveDependencies(newVersion).flatMap(migrationsForRecords(oldVersion, newVersion, _)))(_ |+| _)
@@ -52,7 +51,9 @@ import scala.collection.immutable.{ ListMap, ListSet }
     val isDefined = newVersion.definitions.keySet.contains _
     newVersion.definitions.flatMap {
       case (ref, body) =>
-        findMissing(newVersion, ref, isDefined)(DependencyResolver.dataToDirectNamedDependencies(body))
+        findMissing(newVersion, ref, isDefined)(
+          DependencyResolver.dataToDirectNamedDependencies(newVersion.findName)(body)
+        )
     } match {
       case head :: tail => NonEmptyList(head, tail).raise[F, Unit]
       case Nil          => ().pure[F]
@@ -118,26 +119,6 @@ import scala.collection.immutable.{ ListMap, ListSet }
           if !isDepsEvent
           (domain, name) = refToDomainAndName(newVersion, ref)
         } yield SchemaError.DefinitionTypeMismatch(domain, name, "event", newVersion.definitions(depsRef)): SchemaError
-    } match {
-      case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
-      case Nil          => ().pure[F]
-    }
-  }
-
-  def tupleInTheirDomain(newVersion:   output.Snapshot,
-                         dependencies: ListMap[output.DefinitionRef, Dependencies]): F[Unit] = Sync[F].defer {
-    dependencies.toList.flatMap {
-      case (ref, Dependencies(direct, _)) =>
-        for {
-          refDomain <- newVersion.findDomain(ref).toList
-          (depsRef, depsDomain) <- direct.toList.flatMap(deps => newVersion.findDomain(deps).toList.map(deps -> _))
-          isDepsTuple = newVersion.definitions.get(depsRef) match {
-            case Some(_: output.Data.Definition.Record.Tuple) => true
-            case _ => false
-          }
-          if isDepsTuple && refDomain =!= depsDomain
-          (domain, name) = refToDomainAndName(newVersion, ref)
-        } yield SchemaError.TupleUsedOutsideDomain(domain, name, newVersion.definitions(depsRef)): SchemaError
     } match {
       case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
       case Nil          => ().pure[F]

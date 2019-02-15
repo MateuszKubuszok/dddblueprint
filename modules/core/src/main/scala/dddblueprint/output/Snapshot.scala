@@ -28,6 +28,13 @@ import scala.collection.immutable.{ ListMap, ListSet }
       case (domainRef, definitionRefs) if definitionRefs.contains(ref) => domainRef
     }
 
+  def findName(ref: output.DefinitionRef): Option[String] =
+    for {
+      domainRef <- findDomain(ref)
+      domainName <- namespaces.domains.get(domainRef)
+      name <- namespaces.definitions.get(ref)
+    } yield s"$domainName.$name"
+
   private def domainIndex(ref: output.DomainRef) =
     Index.fromAt[ListMap[output.DomainRef, output.Definitions], output.DomainRef, output.Definitions].index(ref)
 
