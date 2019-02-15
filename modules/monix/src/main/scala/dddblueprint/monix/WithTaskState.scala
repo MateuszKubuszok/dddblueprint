@@ -10,8 +10,8 @@ object WithTaskState {
 
   type TaskState[A] = StateT[Task, output.Snapshot, A]
 
-  implicit val taskStateSchemaErrorHandle: compiler.SchemaErrorHandle[TaskState] =
-    new compiler.SchemaErrorHandle[TaskState] {
+  implicit val taskStateSchemaErrorHandle: SchemaErrorHandle[TaskState] =
+    new SchemaErrorHandle[TaskState] {
       val applicative: Applicative[TaskState] = Applicative[TaskState]
       val functor:     Functor[TaskState]     = Functor[TaskState]
 

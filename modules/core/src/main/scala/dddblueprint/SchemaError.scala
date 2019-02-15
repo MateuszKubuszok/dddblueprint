@@ -7,7 +7,6 @@ import cats.data.NonEmptyList
 import cats.derived.ShowPretty
 import cats.implicits._
 import cats.mtl.implicits._
-import dddblueprint.compiler.SchemaErrorRaise
 import io.scalaland.catnip.Semi
 import monocle.macros._
 import monocle.Prism
@@ -20,6 +19,8 @@ object SchemaError {
   object Wrapper {
     implicit val prism: Prism[Throwable, Wrapper] = GenPrism[Throwable, Wrapper]
   }
+
+  final case class ParsingError(msg: String) extends SchemaError
 
   final case class InvalidRef(ref: UUID) extends SchemaError
 
@@ -45,6 +46,9 @@ object SchemaError {
 
   final case class EventPublishedOutsideDomain(domain: String, name: String, where: output.Data.Definition.Publisher)
       extends SchemaError
+
+  def parsingError[F[_]: SchemaErrorRaise, A](msg: String): F[A] =
+    NonEmptyList.one(ParsingError(msg): SchemaError).raise[F, A]
 
   def invalidRef[F[_]: SchemaErrorRaise, A](ref: UUID): F[A] =
     NonEmptyList.one(InvalidRef(ref): SchemaError).raise[F, A]

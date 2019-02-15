@@ -10,8 +10,8 @@ object WithCoeval {
 
   type CoevalState[A] = StateT[Coeval, output.Snapshot, A]
 
-  implicit val taskStateSchemaErrorHandle: compiler.SchemaErrorHandle[CoevalState] =
-    new compiler.SchemaErrorHandle[CoevalState] {
+  implicit val taskStateSchemaErrorHandle: SchemaErrorHandle[CoevalState] =
+    new SchemaErrorHandle[CoevalState] {
       val applicative: Applicative[CoevalState] = Applicative[CoevalState]
       val functor:     Functor[CoevalState]     = Functor[CoevalState]
 

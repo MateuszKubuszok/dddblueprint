@@ -1,10 +1,13 @@
 package dddblueprint
 package parser
 
+import cats.implicits._
+import cats.effect.Sync
 import fastparse._
 import input._
 import ScalaWhitespace._
-import cats.effect.Sync
+import fastparse.Parsed.{ Failure, Success }
+import io.scalaland.pulp.Cached
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
@@ -224,9 +227,17 @@ private[parser] object Parser {
   }
 }
 
-class Parser[F[_]: Sync] {
+@Cached class Parser[F[_]: Sync: SchemaErrorRaise] {
 
   import Parser._
 
-  def apply(input: String): Parsed[Migration] = parse(input, NonTerminal.migration(_))
+  def apply(input: String): F[Migration] = Sync[F].delay(parse(input, NonTerminal.migration(_))).flatMap {
+    case Success(value, _)    => value.pure[F]
+    case Failure(label, _, _) => SchemaError.parsingError[F, Migration](label)
+  }
+
+  def apply(input: Iterator[String]): F[Migration] = Sync[F].delay(parse(input, NonTerminal.migration(_))).flatMap {
+    case Success(value, _)    => value.pure[F]
+    case Failure(label, _, _) => SchemaError.parsingError[F, Migration](label)
+  }
 }

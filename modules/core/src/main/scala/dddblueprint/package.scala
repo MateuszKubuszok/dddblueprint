@@ -1,6 +1,8 @@
 import cats.{ Applicative, Eq, Eval, Traverse }
+import cats.data.NonEmptyList
 import cats.derived.ShowPretty
 import cats.implicits._
+import cats.mtl.{ ApplicativeHandle, FunctorRaise }
 import monocle.function._
 
 import scala.collection.immutable.{ ListMap, ListSet }
@@ -95,4 +97,10 @@ package object dddblueprint {
           heads ++ last.map(_ + ",")
       } ++ mappedLast.flatten ++ List(")")
     }
+
+  type SchemaErrorHandle[F[_]] = ApplicativeHandle[F, NonEmptyList[SchemaError]]
+  object SchemaErrorHandle { @inline def apply[F[_]](implicit F: SchemaErrorHandle[F]): SchemaErrorHandle[F] = F }
+
+  type SchemaErrorRaise[F[_]] = FunctorRaise[F, NonEmptyList[SchemaError]]
+  object SchemaErrorRaise { @inline def apply[F[_]](implicit F: SchemaErrorRaise[F]): SchemaErrorRaise[F] = F }
 }
