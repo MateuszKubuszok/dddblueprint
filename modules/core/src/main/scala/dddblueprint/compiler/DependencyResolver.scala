@@ -15,7 +15,7 @@ object DependencyResolver {
     case output.Data.Collection.Array(of)       => argToRef(of)
     case output.Data.Collection.Set(of)         => argToRef(of)
     case output.Data.Collection.Map(key, value) => argToRef(key) ++ argToRef(value)
-    case output.Data.Tuple(arguments)           => arguments.flatMap(argToRef)
+    case output.Data.Tuple(arguments)           => arguments.to[ListSet].flatMap(argToRef)
   }
 
   val argToNamedRef: (
@@ -36,7 +36,7 @@ object DependencyResolver {
           (arg, argIndex) <- arguments.zipWithIndex
           (name, ref) <- argToNamedRef(getName)(arg)
         } yield
-          s"(${(0 until arguments.size)
+          s"(${arguments.indices
             .map { index =>
               if (index === argIndex) name else "_"
             }

@@ -55,7 +55,7 @@ object Data {
     @Semi(Eq, ShowPretty) final case class Map(key:   Argument, value: Argument) extends Collection
   }
 
-  @Semi(Eq, ShowPretty) final case class Tuple(arguments: ListSet[Argument]) extends Argument
+  @Semi(Eq, ShowPretty) final case class Tuple(arguments: List[Argument]) extends Argument
 
   @Semi(Eq, ShowPretty) sealed abstract class Definition(val ref: DefinitionRef) extends Data
   object Definition {

@@ -79,7 +79,7 @@ object Data {
     @Semi(Eq, ShowPretty) final case class Map(key:   Argument, value: Argument) extends Collection
   }
 
-  @Semi(Eq, ShowPretty) final case class Tuple(arguments: ListSet[Argument]) extends Argument {
+  @Semi(Eq, ShowPretty) final case class Tuple(arguments: List[Argument]) extends Argument {
 
     def argumentType: Argument.Type = Argument.Type.Tuple
   }

@@ -5,8 +5,6 @@ import cats.implicits._
 import cats.{ Monad, Traverse }
 import io.scalaland.pulp.Cached
 
-import scala.collection.immutable.ListSet
-
 @Cached class ArgumentCompiler[F[_]: Monad: SnapshotState: SnapshotOperations] {
 
   @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
@@ -26,7 +24,7 @@ import scala.collection.immutable.ListSet
         } yield output.Data.Collection.Map(k, v)
 
       case input.Data.Tuple(arguments) =>
-        Traverse[ListSet].sequence[F, output.Argument](arguments.map(apply)).map(output.Data.Tuple.apply)
+        Traverse[List].sequence[F, output.Argument](arguments.map(apply)).map(output.Data.Tuple.apply)
     }
 }
 
