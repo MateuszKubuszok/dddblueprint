@@ -88,8 +88,7 @@ class ActonCompilerSpec extends CompilerSpec {
       val removeDefinition = input.Action.RemoveDefinition(inputs.Enum1Ref)
 
       new TestSnapshot(ActionCompiler(removeDefinition))(snapshot) {
-        val internalRef = definitionRefIso.get(removeDefinition.definition)
-        snapshot.definitions.get(internalRef) === None
+        snapshot.namespaces.definitions.find(_._2.name === removeDefinition.definition.name) === None
       }
     }
 

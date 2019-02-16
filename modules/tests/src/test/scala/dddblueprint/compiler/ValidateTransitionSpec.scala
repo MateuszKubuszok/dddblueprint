@@ -173,7 +173,7 @@ class ValidateTransitionSpec extends CompilerSpec {
       }
     }
 
-    "calculate required migrations for changed enum definitions (removed values)" in new Fixture {
+    "calculate migrations for changed enum definitions" in new Fixture {
       val ref1        = outputs.Enum1Ref
       val ref2        = outputs.Enum2Ref
       val ref3        = outputs.Value1Ref
@@ -199,11 +199,20 @@ class ValidateTransitionSpec extends CompilerSpec {
         .withDefinition(domainRef, ref2, definition2.withValues(ListSet("a")))
 
       new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
-        snapshot.manualMigrations === ListMap(ref3 -> ListSet(ref2), ref4 -> ListSet(ref2))
+        snapshot.automaticMigrations === ListMap(
+          ref3 -> output.Dependencies(ListSet(ref1)),
+          ref4 -> output.Dependencies(ListSet(ref1)),
+          ref1 -> output.Dependencies(ListSet(ref1))
+        )
+        snapshot.manualMigrations === ListMap(
+          ref3 -> output.Dependencies(ListSet(ref2, ref3)),
+          ref4 -> output.Dependencies(ListSet(ref2, ref4)),
+          ref2 -> output.Dependencies(ListSet(ref2))
+        )
       }
     }
 
-    "calculate required migrations for changed record definitions (include transitive dependencies)" in new Fixture {
+    "calculate migrations for changed record definitions" in new Fixture {
       val ref1        = outputs.Entity1Ref
       val ref2        = outputs.Value1Ref
       val ref3        = outputs.Event1Ref
@@ -237,11 +246,13 @@ class ValidateTransitionSpec extends CompilerSpec {
         .withoutDefinition(domainRef, ref2)
 
       new TestSnapshot(ValidateTransition(oldSnapshot, newSnapshot))(newSnapshot) {
+        snapshot.automaticMigrations === ListMap()
         snapshot.manualMigrations === ListMap(
-          ref3 -> ListSet(ref1),
-          ref4 -> ListSet(ref3, ref1),
-          ref5 -> ListSet(ref3, ref1),
-          ref6 -> ListSet(ref3, ref1)
+          ref1 -> output.Dependencies(ListSet(ref1)),
+          ref3 -> output.Dependencies(ListSet(ref3, ref1)),
+          ref4 -> output.Dependencies(ListSet(ref1, ref3, ref4)),
+          ref5 -> output.Dependencies(ListSet(ref3, ref5), ListSet(ref3, ref1, ref5)),
+          ref6 -> output.Dependencies(ListSet(ref3, ref6), ListSet(ref3, ref1, ref6))
         )
       }
     }

@@ -9,16 +9,18 @@ import monocle.macros.syntax.lens._
 import monocle.macros.GenLens
 import io.scalaland.catnip.Semi
 
-import scala.collection.immutable.{ ListMap, ListSet }
+import scala.collection.immutable.ListMap
 
 @Semi(Eq, ShowPretty) final case class Snapshot(
-  namespaces:       Namespaces                                     = Namespaces(),
-  domains:          ListMap[DomainRef, Definitions]                = ListMap.empty,
-  version:          Int                                            = 0,
-  manualMigrations: ListMap[DefinitionRef, ListSet[DefinitionRef]] = ListMap.empty
+  namespaces:          Namespaces                           = Namespaces(),
+  domains:             ListMap[DomainRef, Definitions]      = ListMap.empty,
+  version:             Int                                  = 0,
+  automaticMigrations: ListMap[DefinitionRef, Dependencies] = ListMap.empty,
+  manualMigrations:    ListMap[DefinitionRef, Dependencies] = ListMap.empty
 ) {
 
-  def bumpVersion: Snapshot = copy(version = version + 1, manualMigrations = ListMap.empty)
+  def bumpVersion: Snapshot =
+    copy(version = version + 1, automaticMigrations = ListMap.empty, manualMigrations = ListMap.empty)
 
   lazy val definitions: ListMap[DefinitionRef, Data.Definition] =
     domains.values.map(_.definitions).foldLeft(ListMap.empty[DefinitionRef, Data.Definition])(_ ++ _)
@@ -106,6 +108,9 @@ import scala.collection.immutable.{ ListMap, ListSet }
             ref -> subscriber.lens(_.events).modify(_ - defRef)
         } - defRef
       }
+      // remove from namespaces
+      .lens(_.namespaces.definitions)
+      .modify(_ - defRef)
 
   // assumes definition exists
   def renameDefinition(domainRef: DomainRef, defRef: DefinitionRef, newName: String): Snapshot =
