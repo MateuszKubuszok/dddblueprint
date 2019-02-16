@@ -70,15 +70,13 @@ class CorrectParsingSpec extends ParserSpec {
         )
       }
 
-      val loaded = load("correct-blueprint")
-
-      new TestParsing(loaded.values.toList.map(Parser(_))) {
+      new TestParsing(DirectoryParser("correct-blueprint")) {
         history === expected
       }
     }
   }
 
   private trait Fixture extends Scope {
-    val Parser = Provider.get[Parser[F]]
+    val DirectoryParser = Provider.get[DirectoryParser[F]]
   }
 }

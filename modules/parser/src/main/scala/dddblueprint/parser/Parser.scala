@@ -260,6 +260,8 @@ object Parser {
         Migration(actionsLists.toList.flatten)
       }
   }
+
+  def apply[F[_]](implicit parser: Parser[F]): Parser[F] = parser
 }
 
 @Cached class Parser[F[_]: Sync: SchemaErrorRaise] {
