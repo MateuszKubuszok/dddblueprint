@@ -54,6 +54,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
         pubsubDependsOnlyOnEvents(newVersion, dependencies)
           .map2(eventPublishedInTheirDomain(newVersion, dependencies))(_ |+| _)
           .map2(calculateMigrations(oldVersion, newVersion, dependencies))(_ |+| _)
+          .flatMap(_ => definitionVersions)
       }
 
   def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
@@ -376,11 +377,21 @@ import scala.collection.immutable.{ ListMap, ListSet }
   // scalastyle:on method.length
 
   /* Logic behind calculating versions:
- *
- * - if version was missing (definition didn't exist before) set it to 1
- * - if definition changed, is on manual or automatic migration list, increment it (once!)
- * - otherwise leave version intact
- */
+   *
+   * - if version was missing (definition didn't exist before) set it to 1
+   * - if definition changed, is on manual or automatic migration list, increment it (once!)
+   * - otherwise leave version intact
+   */
+  val definitionVersions: F[Unit] = SnapshotState[F].modify { snapshot =>
+    snapshot.lens(_.namespaces.versions).modify { versions =>
+      val updated = snapshot.automaticMigrations.keySet ++ snapshot.manualMigrations.keySet
+      ListMap(
+        snapshot.definitions.keySet.map { ref =>
+          ref -> versions.get(ref).map(_ + (if (updated.contains(ref)) 1 else 0)).getOrElse(1)
+        }.toSeq: _*
+      )
+    }
+  }
 }
 
 object ValidateTransition {
