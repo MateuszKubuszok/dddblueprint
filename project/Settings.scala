@@ -26,7 +26,7 @@ object Settings extends Dependencies {
   private val rootSettings = commonSettings
 
   private val modulesSettings = commonSettings ++ Seq(
-    scalacOptions ++= Seq(
+    scalacOptions := Seq(
       // standard settings
       "-target:jvm-1.8",
       "-encoding", "UTF-8",
@@ -83,7 +83,7 @@ object Settings extends Dependencies {
       "-Xlint:type-parameter-shadow",
       "-Xlint:unsound-match"
     ),
-    console / scalacOptions := Seq(
+    Compile / console / scalacOptions := Seq(
       // standard settings
       "-target:jvm-1.8",
       "-encoding", "UTF-8",
@@ -175,8 +175,8 @@ object Settings extends Dependencies {
 
     def setDescription(newDescription: String): Project = project.settings(description := newDescription)
 
-    def setInitialImport(newInitialCommand: String): Project =
-      project.settings(initialCommands := s"import dddblueprint._, $newInitialCommand")
+    def setInitialImport(newInitialCommand: String*): Project =
+      project.settings(initialCommands := s"import ${("dddblueprint._" +: newInitialCommand.toList).mkString(", ")}")
   }
 
   implicit class RootConfigurator(project: Project) {

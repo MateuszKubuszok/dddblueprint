@@ -8,9 +8,9 @@ lazy val root = project.root
   .aggregate(core, parser, logback, monix, tests)
 
 lazy val core = project.from("core")
-  .setName("dddblueprint-common")
+  .setName("dddblueprint-core")
   .setDescription("Schema for DDD projects")
-  .setInitialImport("compiler._")
+  .setInitialImport("dddblueprint.compiler._")
   .configureModule
   .settings(Compile / resourceGenerators += task[Seq[File]] {
     val file = (Compile / resourceManaged).value / "dddblueprint-version.conf"
@@ -21,7 +21,7 @@ lazy val core = project.from("core")
 lazy val parser = project.from("parser")
   .setName("dddblueprint-parser")
   .setDescription("Parser for ddd blueprint schema")
-  .setInitialImport("parser._")
+  .setInitialImport("dddblueprint.parser._")
   .configureModule
   .compileAndTestDependsOn(core)
   .settings(
@@ -31,7 +31,7 @@ lazy val parser = project.from("parser")
 lazy val logback = project.from("logback")
   .setName("dddblueprint-logback")
   .setDescription("Lockback type classes to log")
-  .setInitialImport("logback._")
+  .setInitialImport("dddblueprint.logback._")
   .configureModule
   .compileAndTestDependsOn(core)
   .settings(
@@ -41,7 +41,7 @@ lazy val logback = project.from("logback")
 lazy val monix = project.from("monix")
   .setName("dddblueprint-monix")
   .setDescription("Monix type classes to run compilation")
-  .setInitialImport("monix._")
+  .setInitialImport("dddblueprint.monix._")
   .configureModule
   .compileAndTestDependsOn(core)
   .settings(

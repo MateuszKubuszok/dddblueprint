@@ -1,0 +1,21 @@
+users {
+
+  CREATE ENUM of String Sex ('male', 'female')
+
+  CREATE ENTITY User { name: String, surname: String, sex: Sex }
+
+  CREATE VALUE Credential { user: ?User?, email: String, passwordHash: String }
+
+  CREATE EVENT UserCreated { user: User, emails: [String] }
+
+  CREATE SERVICE createUser { user: User, credentials: [Credential] } -> (UserCreated)
+}
+
+notification {
+
+  CREATE SUBSCRIBER onUserCreated (users.UserCreated)
+
+  CREATE EVENT MailSent { email: String }
+
+  CREATE PUBLISHER onMailSent (MailSent)
+}
