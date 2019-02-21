@@ -8,9 +8,34 @@ import _root_.monix.eval.Coeval
 
 object WithCoeval {
 
+  implicit val coevalSchemaErrorHandle: SchemaErrorHandle[Coeval] =
+    new SchemaErrorHandle[Coeval] {
+      val applicative: Applicative[Coeval] = Applicative[Coeval]
+      val functor:     Functor[Coeval]     = Functor[Coeval]
+
+      def attempt[A](fa: Coeval[A]): Coeval[Either[NonEmptyList[SchemaError], A]] =
+        ApplicativeError[Coeval, Throwable].attempt(fa).flatMap {
+          case Left(SchemaError.Wrapper(errors)) => errors.asLeft[A].pure[Coeval]
+          case Left(throwable)                   => ApplicativeError[Coeval, Throwable].raiseError(throwable)
+          case Right(value)                      => value.asRight[NonEmptyList[SchemaError]].pure[Coeval]
+        }
+      def handle[A](fa: Coeval[A])(f: NonEmptyList[SchemaError] => A): Coeval[A] =
+        ApplicativeError[Coeval, Throwable].handleErrorWith(fa) {
+          case SchemaError.Wrapper(errors) => f(errors).pure[Coeval]
+          case _: Throwable => fa
+        }
+      def handleWith[A](fa: Coeval[A])(f: NonEmptyList[SchemaError] => Coeval[A]): Coeval[A] =
+        ApplicativeError[Coeval, Throwable].handleErrorWith(fa) {
+          case SchemaError.Wrapper(errors) => f(errors)
+          case _: Throwable => fa
+        }
+      def raise[A](e: NonEmptyList[SchemaError]): Coeval[A] =
+        ApplicativeError[Coeval, Throwable].raiseError(SchemaError.Wrapper(e))
+    }
+
   type CoevalState[A] = StateT[Coeval, output.Snapshot, A]
 
-  implicit val taskStateSchemaErrorHandle: SchemaErrorHandle[CoevalState] =
+  implicit val coevalStateSchemaErrorHandle: SchemaErrorHandle[CoevalState] =
     new SchemaErrorHandle[CoevalState] {
       val applicative: Applicative[CoevalState] = Applicative[CoevalState]
       val functor:     Functor[CoevalState]     = Functor[CoevalState]

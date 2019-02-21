@@ -259,6 +259,6 @@ class ValidateTransitionSpec extends CompilerSpec {
   }
 
   private trait Fixture extends Scope {
-    val ValidateTransition = Provider.get[ValidateTransition[F]]
+    val ValidateTransition = Provider.get[ValidateTransition[StateIO]]
   }
 }

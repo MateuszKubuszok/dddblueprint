@@ -8,92 +8,92 @@ import io.scalaland.chimney.dsl._
 import io.scalaland.pulp.Cached
 import monocle.macros.syntax.lens._
 
-@Cached class SnapshotOperations[F[_]: Monad: SchemaErrorRaise: SnapshotState] {
+@Cached final class SnapshotOperations[StateIO[_]: Monad: SchemaErrorRaise: SnapshotState] {
 
-  def getDomainRef(name: output.DomainName): F[Option[output.DomainRef]] =
-    SnapshotState[F].inspect { _.namespaces.domains.find(_._2 === name).map(_._1) }
-  def hasDomainName(name: output.DomainName): F[Boolean] =
-    SnapshotState[F].inspect { _.namespaces.domains.exists(_._2 === name) }
-  def withDomainName(name: output.DomainName): F[output.DomainRef] =
+  def getDomainRef(name: output.DomainName): StateIO[Option[output.DomainRef]] =
+    SnapshotState[StateIO].inspect { _.namespaces.domains.find(_._2 === name).map(_._1) }
+  def hasDomainName(name: output.DomainName): StateIO[Boolean] =
+    SnapshotState[StateIO].inspect { _.namespaces.domains.exists(_._2 === name) }
+  def withDomainName(name: output.DomainName): StateIO[output.DomainRef] =
     getDomainRef(name).flatMap {
       case Some(ref) =>
-        ref.pure[F]
+        ref.pure[StateIO]
       case None =>
         for {
-          oldVersion <- SnapshotState[F].get
+          oldVersion <- SnapshotState[StateIO].get
           ref = output.DomainRef()
-          _ <- oldVersion.lens(_.namespaces.domains).modify(_ + (ref -> name)).set[F]
+          _ <- oldVersion.lens(_.namespaces.domains).modify(_ + (ref -> name)).set[StateIO]
         } yield ref
     }
 
-  def getDefinitionRef(name: output.DefinitionName): F[Option[output.DefinitionRef]] =
-    SnapshotState[F].inspect { _.namespaces.definitions.find(_._2 === name).map(_._1) }
-  def hasDefinitionName(name: output.DefinitionName): F[Boolean] =
-    SnapshotState[F].inspect { _.namespaces.definitions.exists(_._2 === name) }
-  def withDefinitionName(name: output.DefinitionName): F[output.DefinitionRef] =
+  def getDefinitionRef(name: output.DefinitionName): StateIO[Option[output.DefinitionRef]] =
+    SnapshotState[StateIO].inspect { _.namespaces.definitions.find(_._2 === name).map(_._1) }
+  def hasDefinitionName(name: output.DefinitionName): StateIO[Boolean] =
+    SnapshotState[StateIO].inspect { _.namespaces.definitions.exists(_._2 === name) }
+  def withDefinitionName(name: output.DefinitionName): StateIO[output.DefinitionRef] =
     getDefinitionRef(name).flatMap {
-      case Some(ref) => ref.pure[F]
+      case Some(ref) => ref.pure[StateIO]
       case None =>
         for {
-          oldVersion <- SnapshotState[F].get
+          oldVersion <- SnapshotState[StateIO].get
           ref = output.DefinitionRef()
-          _ <- oldVersion.lens(_.namespaces.definitions).modify(_ + (ref -> name)).set[F]
+          _ <- oldVersion.lens(_.namespaces.definitions).modify(_ + (ref -> name)).set[StateIO]
         } yield ref
     }
 
-  def definitionToDomain(ref: output.DefinitionRef): F[output.DomainRef] =
-    SnapshotState[F].get.flatMap {
+  def definitionToDomain(ref: output.DefinitionRef): StateIO[output.DomainRef] =
+    SnapshotState[StateIO].get.flatMap {
       _.namespaces.definitions.get(ref) match {
-        case Some(output.DefinitionName(domainRef, _)) => domainRef.pure[F]
-        case None                                      => SchemaError.invalidRef[F, output.DomainRef](ref.id)
+        case Some(output.DefinitionName(domainRef, _)) => domainRef.pure[StateIO]
+        case None                                      => SchemaError.invalidRef[StateIO, output.DomainRef](ref.id)
       }
     }
 
-  def getDefinition(ref: output.DefinitionRef): F[Option[output.Data.Definition]] =
+  def getDefinition(ref: output.DefinitionRef): StateIO[Option[output.Data.Definition]] =
     for {
       domainRef <- definitionToDomain(ref)
-      body <- SnapshotState[F].inspect {
+      body <- SnapshotState[StateIO].inspect {
         _.domains.get(domainRef).flatMap(_.definitions.get(ref))
       }
     } yield body
-  def hasDefinition(ref: output.DefinitionRef): F[Boolean] =
+  def hasDefinition(ref: output.DefinitionRef): StateIO[Boolean] =
     getDefinition(ref).map(_.isDefined)
-  def setDefinition(ref: output.DefinitionRef, body: output.Data.Definition): F[Unit] =
+  def setDefinition(ref: output.DefinitionRef, body: output.Data.Definition): StateIO[Unit] =
     for {
-      oldVersion <- SnapshotState[F].get
+      oldVersion <- SnapshotState[StateIO].get
       name <- oldVersion.namespaces.definitions.get(ref) match {
-        case Some(name) => name.pure[F]
-        case None       => SchemaError.invalidRef[F, output.DefinitionName](ref.id)
+        case Some(name) => name.pure[StateIO]
+        case None       => SchemaError.invalidRef[StateIO, output.DefinitionName](ref.id)
       }
-      _ <- oldVersion.withDefinition(name.domain, ref, body).set[F]
+      _ <- oldVersion.withDefinition(name.domain, ref, body).set[StateIO]
     } yield ()
-  def removeDefinition(ref: output.DefinitionRef): F[Unit] =
+  def removeDefinition(ref: output.DefinitionRef): StateIO[Unit] =
     for {
-      oldVersion <- SnapshotState[F].get
+      oldVersion <- SnapshotState[StateIO].get
       name <- oldVersion.namespaces.definitions.get(ref) match {
-        case Some(name) => name.pure[F]
-        case None       => SchemaError.invalidRef[F, output.DefinitionName](ref.id)
+        case Some(name) => name.pure[StateIO]
+        case None       => SchemaError.invalidRef[StateIO, output.DefinitionName](ref.id)
       }
-      _ <- oldVersion.withoutDefinition(name.domain, ref).set[F]
+      _ <- oldVersion.withoutDefinition(name.domain, ref).set[StateIO]
     } yield ()
-  def renameDefinition(ref: output.DefinitionRef, rename: String): F[Unit] =
+  def renameDefinition(ref: output.DefinitionRef, rename: String): StateIO[Unit] =
     for {
-      oldVersion <- SnapshotState[F].get
+      oldVersion <- SnapshotState[StateIO].get
       name <- oldVersion.namespaces.definitions.get(ref) match {
-        case Some(name) => name.pure[F]
-        case None       => SchemaError.invalidRef[F, output.DefinitionName](ref.id)
+        case Some(name) => name.pure[StateIO]
+        case None       => SchemaError.invalidRef[StateIO, output.DefinitionName](ref.id)
       }
       _ <- oldVersion.namespaces.definitions.values.find { case output.DefinitionName(_, n) => n === rename } match {
         case Some(output.DefinitionName(domain, _)) =>
-          SchemaError.definitionExists[F, Unit](oldVersion.namespaces.domains(domain).name, rename)
-        case None => ().pure[F]
+          SchemaError.definitionExists[StateIO, Unit](oldVersion.namespaces.domains(domain).name, rename)
+        case None => ().pure[StateIO]
       }
-      _ <- oldVersion.renameDefinition(name.domain, ref, rename).set[F]
+      _ <- oldVersion.renameDefinition(name.domain, ref, rename).set[StateIO]
     } yield ()
 
-  def translateDomainRef(ref: input.DomainRef): F[output.DomainName] =
-    ref.transformInto[output.DomainName].pure[F]
-  def translateDefinitionRef(ref: input.DefinitionRef): F[output.DefinitionRef] =
+  def translateDomainRef(ref: input.DomainRef): StateIO[output.DomainName] =
+    ref.transformInto[output.DomainName].pure[StateIO]
+  def translateDefinitionRef(ref: input.DefinitionRef): StateIO[output.DefinitionRef] =
     for {
       domainName <- translateDomainRef(ref.domain)
       domainRef <- withDomainName(domainName)
@@ -102,20 +102,21 @@ import monocle.macros.syntax.lens._
       )
     } yield definitionRef
 
-  def requireDefinitionExists(ref: input.DefinitionRef): F[output.DefinitionRef] =
+  def requireDefinitionExists(ref: input.DefinitionRef): StateIO[output.DefinitionRef] =
     for {
       internalRef <- translateDefinitionRef(ref)
       definitionExists <- hasDefinition(internalRef)
-      _ <- if (!definitionExists) SchemaError.definitionMissing[F, Unit](domain = ref.domain.name, name = ref.name)
-      else ().pure[F]
+      _ <- if (!definitionExists)
+        SchemaError.definitionMissing[StateIO, Unit](domain = ref.domain.name, name = ref.name)
+      else ().pure[StateIO]
     } yield internalRef
 
-  def requireDefinitionNotExisted(ref: input.DefinitionRef): F[output.DefinitionRef] =
+  def requireDefinitionNotExisted(ref: input.DefinitionRef): StateIO[output.DefinitionRef] =
     for {
       internalRef <- translateDefinitionRef(ref)
       definitionExists <- hasDefinition(internalRef)
-      _ <- if (definitionExists) SchemaError.definitionExists[F, Unit](domain = ref.domain.name, name = ref.name)
-      else ().pure[F]
+      _ <- if (definitionExists) SchemaError.definitionExists[StateIO, Unit](domain = ref.domain.name, name = ref.name)
+      else ().pure[StateIO]
     } yield internalRef
 }
 

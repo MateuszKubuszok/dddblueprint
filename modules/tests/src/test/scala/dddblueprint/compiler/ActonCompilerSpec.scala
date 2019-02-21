@@ -675,6 +675,6 @@ class ActonCompilerSpec extends CompilerSpec {
   }
 
   private trait Fixture extends Scope {
-    val ActionCompiler = Provider.get[ActionCompiler[F]]
+    val ActionCompiler = Provider.get[ActionCompiler[StateIO]]
   }
 }

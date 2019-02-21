@@ -1,5 +1,6 @@
-import cats.{ Applicative, Eq, Eval, Traverse }
-import cats.data.NonEmptyList
+import alleycats.Zero
+import cats.{ ~>, Applicative, Eq, Eval, FlatMap, Traverse }
+import cats.data.{ NonEmptyList, StateT }
 import cats.derived.ShowPretty
 import cats.implicits._
 import cats.mtl.{ ApplicativeHandle, FunctorRaise }
@@ -98,9 +99,16 @@ package object dddblueprint {
       } ++ mappedLast.flatten ++ List(")")
     }
 
-  type SchemaErrorHandle[F[_]] = ApplicativeHandle[F, NonEmptyList[SchemaError]]
-  object SchemaErrorHandle { @inline def apply[F[_]](implicit F: SchemaErrorHandle[F]): SchemaErrorHandle[F] = F }
+  type SchemaErrorHandle[IO[_]] = ApplicativeHandle[IO, NonEmptyList[SchemaError]]
+  object SchemaErrorHandle {
+    @inline def apply[IO[_]](implicit StateIO: SchemaErrorHandle[IO]): SchemaErrorHandle[IO] = StateIO
+  }
 
-  type SchemaErrorRaise[F[_]] = FunctorRaise[F, NonEmptyList[SchemaError]]
-  object SchemaErrorRaise { @inline def apply[F[_]](implicit F: SchemaErrorRaise[F]): SchemaErrorRaise[F] = F }
+  type SchemaErrorRaise[IO[_]] = FunctorRaise[IO, NonEmptyList[SchemaError]]
+  object SchemaErrorRaise { @inline def apply[IO[_]](implicit IO: SchemaErrorRaise[IO]): SchemaErrorRaise[IO] = IO }
+
+  implicit def runState[IO[_]: FlatMap, State: Zero]: StateT[IO, State, ?] ~> IO = new (StateT[IO, State, ?] ~> IO) {
+
+    def apply[A](stateIO: StateT[IO, State, A]): IO[A] = stateIO.runA(Zero[State].zero)
+  }
 }

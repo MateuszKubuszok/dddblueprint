@@ -16,7 +16,7 @@ import monocle.macros.syntax.lens._
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
-@Cached class ValidateTransition[F[_]: Sync: SnapshotState: SchemaErrorRaise] {
+@Cached final class ValidateTransition[StateIO[_]: Sync: SnapshotState: SchemaErrorRaise] {
 
   private val mockDefinition = output.DefinitionName(output.DomainRef(new UUID(0, 0)), "undefined")
   private val mockDomainName = output.DomainName("undefined")
@@ -26,8 +26,8 @@ import scala.collection.immutable.{ ListMap, ListSet }
     domainName -> name
   }
 
-  private def resolveDependencies(newVersion: output.Snapshot): F[ListMap[output.DefinitionRef, Dependencies]] =
-    Sync[F].delay(DependencyResolver.findTransitiveDependencies(newVersion.definitions))
+  private def resolveDependencies(newVersion: output.Snapshot): StateIO[ListMap[output.DefinitionRef, Dependencies]] =
+    Sync[StateIO].delay(DependencyResolver.findTransitiveDependencies(newVersion.definitions))
 
   private def findMissing(version:   output.Snapshot,
                           ref:       output.DefinitionRef,
@@ -41,7 +41,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
     }
   }
 
-  def apply(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] =
+  def apply(oldVersion: output.Snapshot, newVersion: output.Snapshot): StateIO[Unit] =
     // first - check if types matches and no definition is missing
     removedAreNotUsed(newVersion)
       .map2(typesMatches(oldVersion, newVersion))(_ |+| _)
@@ -57,7 +57,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
           .flatMap(_ => definitionVersions)
       }
 
-  def removedAreNotUsed(newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
+  def removedAreNotUsed(newVersion: output.Snapshot): StateIO[Unit] = Sync[StateIO].defer {
     val isDefined = newVersion.definitions.keySet.contains _
     newVersion.definitions.flatMap {
       case (ref, body) =>
@@ -65,13 +65,13 @@ import scala.collection.immutable.{ ListMap, ListSet }
           DependencyResolver.dataToDirectNamedDependencies(newVersion.findName)(body)
         )
     } match {
-      case head :: tail => NonEmptyList(head, tail).raise[F, Unit]
-      case Nil          => ().pure[F]
+      case head :: tail => NonEmptyList(head, tail).raise[StateIO, Unit]
+      case Nil          => ().pure[StateIO]
     }
   }
 
   // scalastyle:off cyclomatic.complexity
-  def typesMatches(oldVersion: output.Snapshot, newVersion: output.Snapshot): F[Unit] = Sync[F].defer {
+  def typesMatches(oldVersion: output.Snapshot, newVersion: output.Snapshot): StateIO[Unit] = Sync[StateIO].defer {
     (for {
       (newRef, newDef) <- newVersion.definitions.to[ListSet]
       (oldRef, oldDef) <- oldVersion.definitions.to[ListSet]
@@ -106,15 +106,15 @@ import scala.collection.immutable.{ ListMap, ListSet }
           ListSet(SchemaError.DefinitionTypeMismatch(domain, name, "subscriber", other): SchemaError)
       }
     } yield typeMismatch).toList match {
-      case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
-      case Nil          => ().pure[F]
+      case head :: tail => NonEmptyList[SchemaError](head, tail).raise[StateIO, Unit]
+      case Nil          => ().pure[StateIO]
     }
   }
   // scalastyle:on
 
   def pubsubDependsOnlyOnEvents(newVersion:   output.Snapshot,
-                                dependencies: ListMap[output.DefinitionRef, Dependencies]): F[Unit] =
-    Sync[F].defer {
+                                dependencies: ListMap[output.DefinitionRef, Dependencies]): StateIO[Unit] =
+    Sync[StateIO].defer {
       dependencies.toList.flatMap {
         case (ref, output.Dependencies(direct, _)) =>
           for {
@@ -132,14 +132,14 @@ import scala.collection.immutable.{ ListMap, ListSet }
           } yield
             SchemaError.DefinitionTypeMismatch(domain, name, "event", newVersion.definitions(depsRef)): SchemaError
       } match {
-        case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
-        case Nil          => ().pure[F]
+        case head :: tail => NonEmptyList[SchemaError](head, tail).raise[StateIO, Unit]
+        case Nil          => ().pure[StateIO]
       }
     }
 
   def eventPublishedInTheirDomain(newVersion:   output.Snapshot,
-                                  dependencies: ListMap[output.DefinitionRef, Dependencies]): F[Unit] =
-    Sync[F].defer {
+                                  dependencies: ListMap[output.DefinitionRef, Dependencies]): StateIO[Unit] =
+    Sync[StateIO].defer {
       dependencies.toList.flatMap {
         case (ref, output.Dependencies(direct, _)) =>
           for {
@@ -156,8 +156,8 @@ import scala.collection.immutable.{ ListMap, ListSet }
             (domain, name) = refToDomainAndName(newVersion, ref)
           } yield SchemaError.EventPublishedOutsideDomain(domain, name, publisher): SchemaError
       } match {
-        case head :: tail => NonEmptyList[SchemaError](head, tail).raise[F, Unit]
-        case Nil          => ().pure[F]
+        case head :: tail => NonEmptyList[SchemaError](head, tail).raise[StateIO, Unit]
+        case Nil          => ().pure[StateIO]
       }
     }
 
@@ -233,147 +233,150 @@ import scala.collection.immutable.{ ListMap, ListSet }
    */
   def calculateMigrations(oldVersion:   output.Snapshot,
                           newVersion:   output.Snapshot,
-                          dependencies: ListMap[output.DefinitionRef, Dependencies]): F[Unit] = Sync[F].defer {
-    val enumsWithRemovedValues = for {
-      (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
-        case (ref, enum: output.Data.Definition.Enum) => ref -> enum
-      }
-      (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
-        case (ref, enum: output.Data.Definition.Enum) => ref -> enum
-      }
-      if oldRef === newRef && !oldDef.values.subsetOf(newDef.values)
-    } yield newRef
+                          dependencies: ListMap[output.DefinitionRef, Dependencies]): StateIO[Unit] =
+    Sync[StateIO].defer {
+      val enumsWithRemovedValues = for {
+        (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+          case (ref, enum: output.Data.Definition.Enum) => ref -> enum
+        }
+        (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+          case (ref, enum: output.Data.Definition.Enum) => ref -> enum
+        }
+        if oldRef === newRef && !oldDef.values.subsetOf(newDef.values)
+      } yield newRef
 
-    val enumsWithOnlyAddedValues = (for {
-      (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
-        case (ref, enum: output.Data.Definition.Enum) => ref -> enum
-      }
-      (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
-        case (ref, enum: output.Data.Definition.Enum) => ref -> enum
-      }
-      if oldRef === newRef && !newDef.values.subsetOf(oldDef.values)
-    } yield newRef) -- enumsWithRemovedValues
+      val enumsWithOnlyAddedValues = (for {
+        (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+          case (ref, enum: output.Data.Definition.Enum) => ref -> enum
+        }
+        (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+          case (ref, enum: output.Data.Definition.Enum) => ref -> enum
+        }
+        if oldRef === newRef && !newDef.values.subsetOf(oldDef.values)
+      } yield newRef) -- enumsWithRemovedValues
 
-    val recordsWithAddedOrChangedFields = for {
-      (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
-        case (ref, record: output.Data.Definition.Record) => ref -> record
-      }
-      (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
-        case (ref, record: output.Data.Definition.Record) => ref -> record
-      }
-      if oldRef === newRef
-      fieldAdded = !newDef.fields.keySet.subsetOf(oldDef.fields.keySet)
-      fieldChanged = (for {
-        (name1, arg1) <- oldDef.fields
-        (name2, arg2) <- newDef.fields
-        if name1 === name2
-      } yield arg1.argumentType =!= arg2.argumentType).exists(identity)
-      if fieldAdded || fieldChanged
-    } yield newRef
+      val recordsWithAddedOrChangedFields = for {
+        (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+          case (ref, record: output.Data.Definition.Record) => ref -> record
+        }
+        (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+          case (ref, record: output.Data.Definition.Record) => ref -> record
+        }
+        if oldRef === newRef
+        fieldAdded = !newDef.fields.keySet.subsetOf(oldDef.fields.keySet)
+        fieldChanged = (for {
+          (name1, arg1) <- oldDef.fields
+          (name2, arg2) <- newDef.fields
+          if name1 === name2
+        } yield arg1.argumentType =!= arg2.argumentType).exists(identity)
+        if fieldAdded || fieldChanged
+      } yield newRef
 
-    val recordsWithOnlyRemovedFields = (for {
-      (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
-        case (ref, record: output.Data.Definition.Record) => ref -> record
-      }
-      (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
-        case (ref, record: output.Data.Definition.Record) => ref -> record
-      }
-      if oldRef === newRef
-      fieldRemoved = !oldDef.fields.keySet.subsetOf(newDef.fields.keySet)
-      if fieldRemoved
-    } yield newRef) -- recordsWithAddedOrChangedFields
+      val recordsWithOnlyRemovedFields = (for {
+        (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+          case (ref, record: output.Data.Definition.Record) => ref -> record
+        }
+        (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+          case (ref, record: output.Data.Definition.Record) => ref -> record
+        }
+        if oldRef === newRef
+        fieldRemoved = !oldDef.fields.keySet.subsetOf(newDef.fields.keySet)
+        if fieldRemoved
+      } yield newRef) -- recordsWithAddedOrChangedFields
 
-    val automaticOnItsOwn = recordsWithOnlyRemovedFields ++ enumsWithOnlyAddedValues
-    val immediatelyManual = recordsWithAddedOrChangedFields ++ enumsWithRemovedValues
+      val automaticOnItsOwn = recordsWithOnlyRemovedFields ++ enumsWithOnlyAddedValues
+      val immediatelyManual = recordsWithAddedOrChangedFields ++ enumsWithRemovedValues
 
-    import ValidateTransition.MigrationType
+      import ValidateTransition.MigrationType
 
-    def findType(ref: output.DefinitionRef, solution: Map[output.DefinitionRef, MigrationType]): Option[MigrationType] =
-      solution.get(ref) match {
-        case Some(mt) => Some(mt)
-        case None =>
-          val output.Dependencies(direct, transitive) = dependencies.getOrElse(ref, output.Dependencies(ListSet.empty))
-          val affected                                = transitive + ref
+      def findType(ref:      output.DefinitionRef,
+                   solution: Map[output.DefinitionRef, MigrationType]): Option[MigrationType] =
+        solution.get(ref) match {
+          case Some(mt) => Some(mt)
+          case None =>
+            val output.Dependencies(direct, transitive) =
+              dependencies.getOrElse(ref, output.Dependencies(ListSet.empty))
+            val affected = transitive + ref
 
-          if (immediatelyManual.intersect(affected).nonEmpty) Some(MigrationType.Manual)
-          else if (affected.subsetOf(automaticOnItsOwn)) Some(MigrationType.Automatic)
-          else if (immediatelyManual.intersect(affected).isEmpty && automaticOnItsOwn.intersect(affected).isEmpty) {
-            Some(MigrationType.Unchanged)
-          } else {
-            direct
-              .map(solution.get)
-              .reduceOption { (aOpt, bOpt) =>
-                for {
-                  a <- aOpt
-                  b <- bOpt
-                } yield a |+| b
-              }
-              .flatten
-          }
-      }
-
-    val allRefs = newVersion.definitions.keySet
-
-    @scala.annotation.tailrec
-    def findAllMigrationTypes(
-      solution: Map[output.DefinitionRef, MigrationType] = Map.empty
-    ): Map[output.DefinitionRef, MigrationType] =
-      if (solution.keySet === allRefs) solution
-      else {
-        findAllMigrationTypes(
-          allRefs
-            .map { ref =>
-              ref -> findType(ref, solution)
+            if (immediatelyManual.intersect(affected).nonEmpty) Some(MigrationType.Manual)
+            else if (affected.subsetOf(automaticOnItsOwn)) Some(MigrationType.Automatic)
+            else if (immediatelyManual.intersect(affected).isEmpty && automaticOnItsOwn.intersect(affected).isEmpty) {
+              Some(MigrationType.Unchanged)
+            } else {
+              direct
+                .map(solution.get)
+                .reduceOption { (aOpt, bOpt) =>
+                  for {
+                    a <- aOpt
+                    b <- bOpt
+                  } yield a |+| b
+                }
+                .flatten
             }
-            .collect { case (k, Some(v)) => k -> v }
-            .toMap
-        )
+        }
+
+      val allRefs = newVersion.definitions.keySet
+
+      @scala.annotation.tailrec
+      def findAllMigrationTypes(
+        solution: Map[output.DefinitionRef, MigrationType] = Map.empty
+      ): Map[output.DefinitionRef, MigrationType] =
+        if (solution.keySet === allRefs) solution
+        else {
+          findAllMigrationTypes(
+            allRefs
+              .map { ref =>
+                ref -> findType(ref, solution)
+              }
+              .collect { case (k, Some(v)) => k -> v }
+              .toMap
+          )
+        }
+
+      val allMigrationTypes = findAllMigrationTypes()
+      val allAutomatic      = allMigrationTypes.collect { case (ref, MigrationType.Automatic) => ref }.toSet
+      val allManual         = allMigrationTypes.collect { case (ref, MigrationType.Manual) => ref }.toSet
+
+      val migrations = allRefs.map { ref =>
+        // this way we also handle definitions that have no dependencies
+        val output.Dependencies(direct, transitive) = dependencies.getOrElse(ref, output.Dependencies(ListSet.empty))
+
+        val affected            = transitive + ref
+        val transitiveManual    = affected.intersect(allManual)
+        val transitiveAutomatic = affected.intersect(allAutomatic)
+
+        val automaticDeps =
+          if (transitiveAutomatic.isEmpty) None
+          else Some(output.Dependencies((direct + ref).intersect(transitiveAutomatic), transitiveAutomatic))
+        val manualDeps =
+          if (transitiveManual.isEmpty) None
+          else Some(output.Dependencies((direct + ref).intersect(transitiveManual), transitiveManual))
+
+        ref -> (automaticDeps -> manualDeps)
       }
 
-    val allMigrationTypes = findAllMigrationTypes()
-    val allAutomatic      = allMigrationTypes.collect { case (ref, MigrationType.Automatic) => ref }.toSet
-    val allManual         = allMigrationTypes.collect { case (ref, MigrationType.Manual) => ref }.toSet
-
-    val migrations = allRefs.map { ref =>
-      // this way we also handle definitions that have no dependencies
-      val output.Dependencies(direct, transitive) = dependencies.getOrElse(ref, output.Dependencies(ListSet.empty))
-
-      val affected            = transitive + ref
-      val transitiveManual    = affected.intersect(allManual)
-      val transitiveAutomatic = affected.intersect(allAutomatic)
-
-      val automaticDeps =
-        if (transitiveAutomatic.isEmpty) None
-        else Some(output.Dependencies((direct + ref).intersect(transitiveAutomatic), transitiveAutomatic))
-      val manualDeps =
-        if (transitiveManual.isEmpty) None
-        else Some(output.Dependencies((direct + ref).intersect(transitiveManual), transitiveManual))
-
-      ref -> (automaticDeps -> manualDeps)
+      Traverse[ListSet]
+        .sequence(
+          migrations
+            .map {
+              case (ref, (automaticOpt, manualOpt)) =>
+                type Deps = ListMap[output.DefinitionRef, output.Dependencies]
+                val automaticUpdate: Deps => Deps = automaticOpt match {
+                  case Some(automatic) => _.updated(ref, automatic)
+                  case None            => identity
+                }
+                val manualUpdate: Deps => Deps = manualOpt match {
+                  case Some(manual) => _.updated(ref, manual)
+                  case None         => identity
+                }
+                SnapshotState[StateIO].modify(
+                  _.lens(_.automaticMigrations).modify(automaticUpdate).lens(_.manualMigrations).modify(manualUpdate)
+                )
+            }
+            .to[ListSet]
+        )
+        .map(_ => ())
     }
-
-    Traverse[ListSet]
-      .sequence(
-        migrations
-          .map {
-            case (ref, (automaticOpt, manualOpt)) =>
-              type Deps = ListMap[output.DefinitionRef, output.Dependencies]
-              val automaticUpdate: Deps => Deps = automaticOpt match {
-                case Some(automatic) => _.updated(ref, automatic)
-                case None            => identity
-              }
-              val manualUpdate: Deps => Deps = manualOpt match {
-                case Some(manual) => _.updated(ref, manual)
-                case None         => identity
-              }
-              SnapshotState[F].modify(
-                _.lens(_.automaticMigrations).modify(automaticUpdate).lens(_.manualMigrations).modify(manualUpdate)
-              )
-          }
-          .to[ListSet]
-      )
-      .map(_ => ())
-  }
   // scalastyle:on method.length
 
   /* Logic behind calculating versions:
@@ -382,7 +385,7 @@ import scala.collection.immutable.{ ListMap, ListSet }
    * - if definition changed, is on manual or automatic migration list, increment it (once!)
    * - otherwise leave version intact
    */
-  val definitionVersions: F[Unit] = SnapshotState[F].modify { snapshot =>
+  val definitionVersions: StateIO[Unit] = SnapshotState[StateIO].modify { snapshot =>
     snapshot.lens(_.namespaces.versions).modify { versions =>
       val updated = snapshot.automaticMigrations.keySet ++ snapshot.manualMigrations.keySet
       ListMap(

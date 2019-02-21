@@ -13,17 +13,17 @@ import io.scalaland.pulp.Cached
 
 import scala.collection.JavaConverters._
 
-@Cached class DirectoryParser[F[_]: Sync: SchemaErrorRaise: Parser] {
+@Cached class DirectoryParser[IO[_]: Sync: SchemaErrorRaise: Parser] {
 
-  def apply(path: String): F[input.History] =
+  def apply(path: String): IO[input.History] =
     load(path).flatMap {
       case Some(inputs) =>
-        Traverse[List].sequence[F, input.Migration](inputs.map(Parser[F].apply(_))).map(input.History(_))
+        Traverse[List].sequence[IO, input.Migration](inputs.map(Parser[IO].apply(_))).map(input.History(_))
       case None =>
-        SchemaError.parsingError[F, input.History](s"Not found migrations in $path")
+        SchemaError.parsingError[IO, input.History](s"Not found migrations in $path")
     }
 
-  def load(path: String): F[Option[List[String]]] = Sync[F].delay {
+  def load(path: String): IO[Option[List[String]]] = Sync[IO].delay {
     val cl = getClass.getClassLoader
 
     lazy val external =
@@ -56,5 +56,5 @@ import scala.collection.JavaConverters._
 
 object DirectoryParser {
 
-  def apply[F[_]](implicit directoryParser: DirectoryParser[F]): DirectoryParser[F] = directoryParser
+  def apply[IO[_]](implicit directoryParser: DirectoryParser[IO]): DirectoryParser[IO] = directoryParser
 }

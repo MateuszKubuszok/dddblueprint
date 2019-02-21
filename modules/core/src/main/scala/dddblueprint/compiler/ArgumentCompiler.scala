@@ -5,14 +5,14 @@ import cats.implicits._
 import cats.{ Monad, Traverse }
 import io.scalaland.pulp.Cached
 
-@Cached class ArgumentCompiler[F[_]: Monad: SnapshotState: SnapshotOperations] {
+@Cached final class ArgumentCompiler[StateIO[_]: Monad: SnapshotState: SnapshotOperations] {
 
   @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
-  def apply(argument: input.Argument): F[output.Argument] =
+  def apply(argument: input.Argument): StateIO[output.Argument] =
     argument match {
-      case ref: input.DefinitionRef => ref.translate[F].map(r => r: output.Argument)
+      case ref: input.DefinitionRef => ref.translate[StateIO].map(r => r: output.Argument)
 
-      case p: input.Data.Primitive => (PrimitivesCompiler(p): output.Argument).pure[F]
+      case p: input.Data.Primitive => (PrimitivesCompiler(p): output.Argument).pure[StateIO]
 
       case input.Data.Collection.Option(of) => apply(of).map(output.Data.Collection.Option.apply)
       case input.Data.Collection.Array(of)  => apply(of).map(output.Data.Collection.Array.apply)
@@ -24,7 +24,7 @@ import io.scalaland.pulp.Cached
         } yield output.Data.Collection.Map(k, v)
 
       case input.Data.Tuple(arguments) =>
-        Traverse[List].sequence[F, output.Argument](arguments.map(apply)).map(output.Data.Tuple.apply)
+        Traverse[List].sequence[StateIO, output.Argument](arguments.map(apply)).map(output.Data.Tuple.apply)
     }
 }
 

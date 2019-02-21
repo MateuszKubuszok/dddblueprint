@@ -77,6 +77,6 @@ class CorrectParsingSpec extends ParserSpec {
   }
 
   private trait Fixture extends Scope {
-    val DirectoryParser = Provider.get[DirectoryParser[F]]
+    val DirectoryParser = Provider.get[DirectoryParser[IO]]
   }
 }

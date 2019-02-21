@@ -6,14 +6,13 @@ import cats.implicits._
 import io.scalaland.pulp.Cached
 import monocle.macros.syntax.lens._
 
-@Cached class HistoryCompiler[F[_]: Monad: SnapshotState: MigrationCompiler] {
+@Cached final class HistoryCompiler[IO[_]: Monad: FixedMigrationCompiler] {
 
-  def apply(history: input.History): F[output.Blueprint] =
-    history.migrations.foldLeft(output.Blueprint().pure[F]) { (previousVersion, migration) =>
+  def apply(history: input.History): IO[output.Blueprint] =
+    history.migrations.foldLeft(output.Blueprint().pure[IO]) { (previousVersion, migration) =>
       for {
         oldBlueprint <- previousVersion
-        _ <- migration.compile[F]
-        lastSnapshot <- SnapshotState[F].get
+        lastSnapshot <- migration.compile[IO]
       } yield oldBlueprint.lens(_.versions).modify(_ :+ lastSnapshot)
     }
 }

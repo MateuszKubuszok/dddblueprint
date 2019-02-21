@@ -4,6 +4,8 @@ import cats.mtl.MonadState
 
 package object compiler extends syntax {
 
-  type SnapshotState[F[_]] = MonadState[F, output.Snapshot]
-  object SnapshotState { @inline def apply[F[_]](implicit F: SnapshotState[F]): SnapshotState[F] = F }
+  type SnapshotState[StateIO[_]] = MonadState[StateIO, output.Snapshot]
+  object SnapshotState {
+    @inline def apply[StateIO[_]](implicit StateIO: SnapshotState[StateIO]): SnapshotState[StateIO] = StateIO
+  }
 }

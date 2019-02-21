@@ -9,20 +9,28 @@ trait FRunningSpec extends Specification with logback.LogbackLogging.Module {
   val inputs  = input.Fixtures
   val outputs = output.Fixtures
 
-  type F[A] = monix.WithCoeval.CoevalState[A]
+  type StateIO[A] = monix.WithCoeval.CoevalState[A]
+  type IO[A]      = _root_.monix.eval.Coeval[A]
 
-  protected implicit val sync:              Sync[F]              = FRunningSpec.implicits._1
-  protected implicit val snapshotState:     SnapshotState[F]     = FRunningSpec.implicits._2
-  protected implicit val schemaErrorHandle: SchemaErrorHandle[F] = FRunningSpec.implicits._3
+  protected implicit val syncStateIO:              Sync[StateIO]              = FRunningSpec.implicits._1
+  protected implicit val snapshotStateStateIO:     SnapshotState[StateIO]     = FRunningSpec.implicits._2
+  protected implicit val schemaErrorHandleStateIO: SchemaErrorHandle[StateIO] = FRunningSpec.implicits._3
+  protected implicit val syncIO:                   Sync[IO]                   = FRunningSpec.implicits._4
+  protected implicit val schemaErrorHandleIO:      SchemaErrorHandle[IO]      = FRunningSpec.implicits._5
 }
 
 object FRunningSpec {
 
-  type F[A] = monix.WithCoeval.CoevalState[A]
+  type StateIO[A] = monix.WithCoeval.CoevalState[A]
+  type IO[A]      = _root_.monix.eval.Coeval[A]
 
   private val implicits = locally {
     import cats.mtl.implicits._
 
-    (Sync[F], SnapshotState[F], monix.WithCoeval.taskStateSchemaErrorHandle)
+    (Sync[StateIO],
+     SnapshotState[StateIO],
+     monix.WithCoeval.coevalStateSchemaErrorHandle,
+     Sync[IO],
+     monix.WithCoeval.coevalSchemaErrorHandle)
   }
 }
