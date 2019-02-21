@@ -264,7 +264,7 @@ object Parser {
   def apply[F[_]](implicit parser: Parser[F]): Parser[F] = parser
 }
 
-@Cached class Parser[F[_]: Sync: SchemaErrorRaise] {
+@Cached class Parser[F[_]: Sync] {
 
   import Parser._
 

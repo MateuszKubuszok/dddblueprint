@@ -5,7 +5,7 @@ lazy val root = project.root
   .setName("dddblueprint")
   .setDescription("Build of dddblueprint")
   .configureRoot
-  .aggregate(core, parser, logback, monix, tests)
+  .aggregate(core, parser, logback, tests)
 
 lazy val core = project.from("core")
   .setName("dddblueprint-core")
@@ -38,22 +38,15 @@ lazy val logback = project.from("logback")
     libraryDependencies ++= Seq(Dependencies.scalaLogging, Dependencies.logback)
   )
 
-lazy val monix = project.from("monix")
-  .setName("dddblueprint-monix")
-  .setDescription("Monix type classes to run compilation")
-  .setInitialImport("dddblueprint.monix._")
-  .configureModule
-  .compileAndTestDependsOn(core)
-  .settings(
-    libraryDependencies ++= Seq(Dependencies.monixEval, Dependencies.monixExecution)
-  )
-
 lazy val tests = project.from("tests")
   .setName("tests")
   .setDescription("dddblueprint-tests")
   .configureModule
   .configureTests(requiresFork = true)
-  .dependsOn(core % "test->compile", parser % "test->compile", logback % "test->compile", monix % "test->compile")
+  .dependsOn(core % "test->compile", parser % "test->compile", logback % "test->compile")
+  .settings(
+    libraryDependencies ++= Seq(Dependencies.monixEval, Dependencies.monixExecution)
+  )
 
 addCommandAlias("fullTest", ";test;scalastyle")
 addCommandAlias("fullCoverageTest", ";coverage;test;coverageReport;coverageAggregate;scalastyle")

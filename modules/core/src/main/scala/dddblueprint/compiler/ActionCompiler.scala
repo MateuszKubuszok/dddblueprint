@@ -7,7 +7,9 @@ import io.scalaland.pulp.Cached
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
-@Cached final class ActionCompiler[StateIO[_]: Monad: SchemaErrorRaise: SnapshotState: SnapshotOperations: ArgumentCompiler] {
+@Cached final class ActionCompiler[
+  StateIO[_]: Monad: SchemaErrorRaise: SnapshotState: SnapshotOperations: ArgumentCompiler
+] {
 
   private def mapFields(fields: input.Data.Definition.FieldSet): StateIO[output.Data.Definition.FieldSet] =
     Traverse[ListMap[String, ?]].sequence[StateIO, output.Argument](fields.map {

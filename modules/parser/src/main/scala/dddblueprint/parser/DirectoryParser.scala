@@ -13,7 +13,7 @@ import io.scalaland.pulp.Cached
 
 import scala.collection.JavaConverters._
 
-@Cached class DirectoryParser[IO[_]: Sync: SchemaErrorRaise: Parser] {
+@Cached class DirectoryParser[IO[_]: Sync: Parser] {
 
   def apply(path: String): IO[input.History] =
     load(path).flatMap {

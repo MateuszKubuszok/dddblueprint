@@ -1,5 +1,5 @@
 import alleycats.Zero
-import cats.{ ~>, Applicative, Eq, Eval, FlatMap, Traverse }
+import cats.{ ~>, Applicative, Eq, Eval, FlatMap, Functor, MonadError, Traverse }
 import cats.data.{ NonEmptyList, StateT }
 import cats.derived.ShowPretty
 import cats.implicits._
@@ -103,6 +103,31 @@ package object dddblueprint {
   object SchemaErrorHandle {
     @inline def apply[IO[_]](implicit StateIO: SchemaErrorHandle[IO]): SchemaErrorHandle[IO] = StateIO
   }
+
+  implicit def schemaErrorHandle[IO[_]](implicit io: MonadError[IO, Throwable]): SchemaErrorHandle[IO] =
+    new SchemaErrorHandle[IO] {
+      val applicative: Applicative[IO] = io
+      val functor:     Functor[IO]     = io
+
+      def attempt[A](fa: IO[A]): IO[Either[NonEmptyList[SchemaError], A]] =
+        io.attempt(fa).flatMap {
+          case Left(SchemaError.Wrapper(errors)) => errors.asLeft[A].pure[IO]
+          case Left(throwable)                   => io.raiseError(throwable)
+          case Right(value)                      => value.asRight[NonEmptyList[SchemaError]].pure[IO]
+        }
+      def handle[A](fa: IO[A])(f: NonEmptyList[SchemaError] => A): IO[A] =
+        io.handleErrorWith(fa) {
+          case SchemaError.Wrapper(errors) => f(errors).pure[IO]
+          case _: Throwable => fa
+        }
+      def handleWith[A](fa: IO[A])(f: NonEmptyList[SchemaError] => IO[A]): IO[A] =
+        io.handleErrorWith(fa) {
+          case SchemaError.Wrapper(errors) => f(errors)
+          case _: Throwable => fa
+        }
+      def raise[A](e: NonEmptyList[SchemaError]): IO[A] =
+        io.raiseError(SchemaError.Wrapper(e))
+    }
 
   type SchemaErrorRaise[IO[_]] = FunctorRaise[IO, NonEmptyList[SchemaError]]
   object SchemaErrorRaise { @inline def apply[IO[_]](implicit IO: SchemaErrorRaise[IO]): SchemaErrorRaise[IO] = IO }

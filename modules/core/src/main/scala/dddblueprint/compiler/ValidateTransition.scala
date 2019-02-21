@@ -16,7 +16,7 @@ import monocle.macros.syntax.lens._
 
 import scala.collection.immutable.{ ListMap, ListSet }
 
-@Cached final class ValidateTransition[StateIO[_]: Sync: SnapshotState: SchemaErrorRaise] {
+@Cached final class ValidateTransition[StateIO[_]: Sync: SnapshotState] {
 
   private val mockDefinition = output.DefinitionName(output.DomainRef(new UUID(0, 0)), "undefined")
   private val mockDomainName = output.DomainName("undefined")

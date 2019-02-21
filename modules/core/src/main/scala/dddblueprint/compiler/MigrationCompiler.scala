@@ -18,11 +18,6 @@ object FixedMigrationCompiler {
 
   @inline def apply[IO[_]](implicit fixedMigrationCompiler: FixedMigrationCompiler[IO]): FixedMigrationCompiler[IO] =
     fixedMigrationCompiler
-
-//  implicit def provider[StateIO[_], IO[_]](
-//    implicit migrationCompilerProvider: Provider[MigrationCompiler[StateIO, IO]]
-//  ): Provider[FixedMigrationCompiler[IO]] =
-//    Provider.upcast[MigrationCompiler[StateIO, IO], FixedMigrationCompiler[IO]]
 }
 
 // scalastyle:off no.whitespace.after.left.bracket
