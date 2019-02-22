@@ -8,8 +8,8 @@
         </encoder>
     </appender>
 
-    <!--<root level="error">-->
-    <root level="trace">
+    <!--<root level="trace">-->
+    <root level="off">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>
