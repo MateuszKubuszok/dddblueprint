@@ -10,7 +10,8 @@ object syntax { // scalastyle:ignore object.name
 
   implicit def liftWithShow[A: Show](value: A): ShowLifted = () => value.show
 
-  trait LogWithF { def apply[F[_]: Logging]: F[Unit] }
+  trait LogWithF { def apply[F[_]:                        Logging]: F[Unit] }
+  trait LogErrorWithF extends LogWithF { def withEx[F[_]: Logging](ex: Throwable): F[Unit] }
 
   implicit class LoggerContext(val sc: StringContext) extends AnyVal {
 
@@ -23,8 +24,9 @@ object syntax { // scalastyle:ignore object.name
     def warn(args: ShowLifted*): LogWithF = new LogWithF {
       def apply[F[_]: Logging]: F[Unit] = Logging[F].warn(sc.raw(args.map(_.value()): _*))
     }
-    def error(args: ShowLifted*): LogWithF = new LogWithF {
-      def apply[F[_]: Logging]: F[Unit] = Logging[F].error(sc.raw(args.map(_.value()): _*))
+    def error(args: ShowLifted*): LogErrorWithF = new LogErrorWithF {
+      def apply[F[_]:  Logging]: F[Unit] = Logging[F].error(sc.raw(args.map(_.value()): _*))
+      def withEx[F[_]: Logging](ex: Throwable): F[Unit] = Logging[F].error(sc.raw(args.map(_.value()): _*), ex)
     }
   }
 }

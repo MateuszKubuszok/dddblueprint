@@ -96,20 +96,20 @@ object Parser {
     )
 
     def option[_: P]: P[DomainRef => Data.Collection.Option] =
-      P(`?` ~ argument ~ `?`).map(_.andThen(Data.Collection.Option.apply))
+      P(`?` ~/ argument ~ `?`).map(_.andThen(Data.Collection.Option.apply))
     def array[_: P]: P[DomainRef => Data.Collection.Array] =
-      P(`[` ~ argument ~ `]`).map(_.andThen(Data.Collection.Array.apply))
+      P(`[` ~/ argument ~ `]`).map(_.andThen(Data.Collection.Array.apply))
     def set[_: P]: P[DomainRef => Data.Collection.Set] =
-      P(`{` ~ argument ~ `}`).map(_.andThen(Data.Collection.Set.apply))
+      P(`{` ~/ argument ~ `}`).map(_.andThen(Data.Collection.Set.apply))
     def map[_: P]: P[DomainRef => Data.Collection.Map] =
-      P(`{` ~ argument ~ `:` ~ argument ~ `}`).map {
+      P(`{` ~/ argument ~ `:` ~ argument ~ `}`).map {
         case (k, v) =>
           (domainRef: DomainRef) =>
             Data.Collection.Map(k(domainRef), v(domainRef))
       }
     def collection[_: P]: P[DomainRef => Data.Collection] = P(option | array | set | map)
 
-    def tuple[_: P]: P[DomainRef => Data.Tuple] = P(`(` ~ argument.rep(1, `,`) ~ `)`).map {
+    def tuple[_: P]: P[DomainRef => Data.Tuple] = P(`(` ~/ argument.rep(1, `,`) ~ `)`).map {
       args => (domainRef: DomainRef) =>
         Data.Tuple(args.map(_(domainRef)).toList)
     }
@@ -117,7 +117,7 @@ object Parser {
     def argument[_: P]: P[DomainRef => Argument] =
       P(primitive.map(ref => (_: DomainRef) => ref) | collection | tuple | definitionRef)
     def fieldSet[_: P]: P[DomainRef => Data.Definition.FieldSet] =
-      P(`{` ~/ (name ~ `:` ~ argument).rep(sep = `,`) ~ `}`).map { arguments => (domainRef: DomainRef) =>
+      P(`{` ~/ (name ~ `:` ~/ argument).rep(sep = `,`) ~ `}`).map { arguments => (domainRef: DomainRef) =>
         ListMap(arguments.map { case (k, fv) => k -> fv(domainRef) }.toSeq: _*)
       }
     def refSet[_: P]: P[DomainRef => Data.Definition.RefSet] =
@@ -156,21 +156,21 @@ object Parser {
       P(entityDefinition | valueDefinition | eventDefinition)
 
     def serviceDefinition[_: P]: P[DomainRef => Data.Definition.Service] =
-      P(service ~ name ~ fieldSet ~ `->` ~ refSet).map {
+      P(service ~ name ~/ fieldSet ~ `->` ~ refSet).map {
         case (name, inputs, outputs) =>
           (domainRef: DomainRef) =>
             Data.Definition.Service(DefinitionRef(domainRef, name), inputs(domainRef), outputs(domainRef))
       }
 
     def publisherDefinition[_: P]: P[DomainRef => Data.Definition.Publisher] =
-      P(publisher ~ name ~ refSet).map {
+      P(publisher ~ name ~/ refSet).map {
         case (name, events) =>
           (domainRef: DomainRef) =>
             Data.Definition.Publisher(DefinitionRef(domainRef, name), events(domainRef))
       }
 
     def subscriberDefinition[_: P]: P[DomainRef => Data.Definition.Subscriber] =
-      P(subscriber ~ name ~ refSet).map {
+      P(subscriber ~ name ~/ refSet).map {
         case (name, events) =>
           (domainRef: DomainRef) =>
             Data.Definition.Subscriber(DefinitionRef(domainRef, name), events(domainRef))
@@ -182,74 +182,72 @@ object Parser {
     // actions
 
     def createDefinitionAction[_: P]: P[DomainRef => Action.CreateDefinition] =
-      P(create ~/ definition).map { definitionf => (domainRef: DomainRef) =>
+      P(create ~ definition).map { definitionf => (domainRef: DomainRef) =>
         Action.CreateDefinition(definitionf(domainRef))
       }
     def removeDefinitionAction[_: P]: P[DomainRef => Action.RemoveDefinition] =
-      P(remove ~/ name).map { name => (domainRef: DomainRef) =>
+      P(remove ~ name).map { name => (domainRef: DomainRef) =>
         Action.RemoveDefinition(DefinitionRef(domainRef, name))
       }
     def renameDefinitionAction[_: P]: P[DomainRef => Action.RenameDefinition] =
-      P(rename ~/ name ~ name).map {
+      P(rename ~ name ~ `->` ~ name).map {
         case (oldName, newName) =>
           (domainRef: DomainRef) =>
             Action.RenameDefinition(DefinitionRef(domainRef, oldName), newName)
       }
     def addEnumValuesAction[_: P]: P[DomainRef => Action.AddEnumValues] =
-      P(create ~/ enum ~ name ~ values ~ `(` ~ name.rep(sep = `,`) ~ `)`).map {
+      P(create ~ enum ~ name ~ values ~/ `(` ~ name.rep(sep = `,`) ~ `)`).map {
         case (name, newValues) =>
           (domainRef: DomainRef) =>
             Action.AddEnumValues(DefinitionRef(domainRef, name), newValues.to[ListSet])
       }
     def removeEnumValuesAction[_: P]: P[DomainRef => Action.RemoveEnumValues] =
-      P(remove ~/ enum ~ name ~ values ~ `(` ~ name.rep(sep = `,`) ~ `)`).map {
+      P(remove ~ enum ~ name ~ values ~/ `(` ~ name.rep(sep = `,`) ~ `)`).map {
         case (name, removedValues) =>
           (domainRef: DomainRef) =>
             Action.RemoveEnumValues(DefinitionRef(domainRef, name), removedValues.to[ListSet])
       }
     def renameEnumValuesAction[_: P]: P[DomainRef => Action.RenameEnumValues] =
-      P(rename ~/ enum ~ name ~ values ~ `(` ~ (name ~ `->` ~ name).rep(sep = `,`) ~ `)`).map {
+      P(rename ~ enum ~ name ~ values ~/ `(` ~ (name ~ `->` ~ name).rep(sep = `,`) ~ `)`).map {
         case (name, renamedValues) =>
           (domainRef: DomainRef) =>
             Action.RenameEnumValues(DefinitionRef(domainRef, name), ListMap(renamedValues.toSeq: _*))
       }
     def addRecordFieldsAction[_: P]: P[DomainRef => Action.AddRecordFields] =
-      P(create ~/ record ~ name ~ fields ~ `{` ~ (name ~ `->` ~ argument).rep(sep = `,`) ~ `}`).map {
+      P(create ~ record ~ name ~ fields ~/ fieldSet).map {
         case (name, newFields) =>
           (domainRef: DomainRef) =>
-            Action.AddRecordFields(DefinitionRef(domainRef, name), ListMap(newFields.map {
-              case (k, vf) => k -> vf(domainRef)
-            }.toSeq: _*))
+            Action.AddRecordFields(DefinitionRef(domainRef, name), newFields(domainRef))
       }
     def removeRecordFieldsAction[_: P]: P[DomainRef => Action.RemoveRecordFields] =
-      P(remove ~/ record ~ name ~ fields ~ `{` ~ name.rep(sep = `,`) ~ `}`).map {
+      P(remove ~ record ~ name ~ fields ~/ `{` ~ name.rep(sep = `,`) ~ `}`).map {
         case (name, removedFields) =>
           (domainRef: DomainRef) =>
             Action.RemoveRecordFields(DefinitionRef(domainRef, name), removedFields.to[ListSet])
       }
     def renameRecordFieldsAction[_: P]: P[DomainRef => Action.RenameRecordFields] =
-      P(rename ~/ record ~ name ~ fields ~ `{` ~ (name ~ `->` ~ name).rep(sep = `,`) ~ `}`).map {
+      P(rename ~ record ~ name ~ fields ~/ `{` ~ (name ~ `->` ~ name).rep(sep = `,`) ~ `}`).map {
         case (name, renamedFields) =>
           (domainRef: DomainRef) =>
             Action.RenameRecordFields(DefinitionRef(domainRef, name), ListMap(renamedFields.toSeq: _*))
       }
     def action[_: P]: P[DomainRef => Action] =
       P(
-        createDefinitionAction |
-          removeDefinitionAction |
+        renameEnumValuesAction |
+          renameRecordFieldsAction |
           renameDefinitionAction |
-          addEnumValuesAction |
-          removeEnumValuesAction |
-          renameEnumValuesAction |
-          addRecordFieldsAction |
           removeRecordFieldsAction |
-          renameRecordFieldsAction
+          removeEnumValuesAction |
+          removeDefinitionAction |
+          addEnumValuesAction |
+          addRecordFieldsAction |
+          createDefinitionAction
       )
 
     // migration
 
     def actionsInDomain[_: P]: P[List[Action]] =
-      P(name ~ `{` ~/ action.rep ~ `}`).map {
+      P(name ~/ `{` ~/ action.rep ~ `}`).map {
         case (domainName, actionsf) =>
           val domainRef = DomainRef(domainName)
           actionsf.map(_(domainRef)).toList
@@ -268,13 +266,17 @@ object Parser {
 
   import Parser._
 
-  def apply(input: String): F[Migration] = Sync[F].delay(parse(input, NonTerminal.migration(_))).flatMap {
-    case Success(value, _)    => value.pure[F]
-    case Failure(label, a, b) => SchemaError.parsingError[F, Migration](s"$label: $a -> ${b}")
-  }
+  def apply(input: String): F[Migration] =
+    Sync[F].delay(parse(input, NonTerminal.migration(_), verboseFailures = true)).flatMap {
+      case Success(value, _) => value.pure[F]
+      case Failure(label, index, extra) =>
+        SchemaError.parsingError[F, Migration](s"$label: $index -> ${extra.trace(false)}")
+    }
 
-  def apply(input: Iterator[String]): F[Migration] = Sync[F].delay(parse(input, NonTerminal.migration(_))).flatMap {
-    case Success(value, _)    => value.pure[F]
-    case Failure(label, _, _) => SchemaError.parsingError[F, Migration](label)
-  }
+  def apply(input: Iterator[String]): F[Migration] =
+    Sync[F].delay(parse(input, NonTerminal.migration(_), verboseFailures = true)).flatMap {
+      case Success(value, _) => value.pure[F]
+      case Failure(label, index, extra) =>
+        SchemaError.parsingError[F, Migration](s"$label: $index -> ${extra.trace(false)}")
+    }
 }

@@ -1,0 +1,11 @@
+users {
+
+  RENAME createUser -> newUser
+}
+
+notification {
+
+  REMOVE onMailSent
+
+  REMOVE MailSent
+}
