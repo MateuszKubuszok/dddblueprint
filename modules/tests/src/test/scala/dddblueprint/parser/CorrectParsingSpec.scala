@@ -65,6 +65,18 @@ class CorrectParsingSpec extends ParserSpec {
                 Action.CreateDefinition(Data.Definition.Record.Event(mailSentRef, ListMap("email" -> Data.String))),
                 Action.CreateDefinition(Data.Definition.Publisher(onMailSentRef, ListSet(mailSentRef))),
               )
+            ),
+            // v2__update-domains.ddd
+            Migration(
+              List(
+                Action.AddEnumValues(sexRef, ListSet("undefined")),
+                Action.RenameEnumValues(sexRef, ListMap("male" -> "M", "female" -> "F")),
+                Action.RemoveRecordFields(userRef, ListSet("surname")),
+                Action.RenameRecordFields(credentialRef, ListMap("passwordHash" -> "hash")),
+                Action.RenameDefinition(createUserRef, "newUser"),
+                Action.RemoveDefinition(onMailSentRef),
+                Action.AddRecordFields(mailSentRef, ListMap("when" -> Data.String))
+              )
             )
           )
         )

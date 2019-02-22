@@ -21,7 +21,7 @@ lazy val core = project.from("core")
 lazy val parser = project.from("parser")
   .setName("dddblueprint-parser")
   .setDescription("Parser for ddd blueprint schema")
-  .setInitialImport("dddblueprint.parser._")
+  .setInitialImport("dddblueprint.parser._", "fastparse._", "fastparse.ScalaWhitespace._")
   .configureModule
   .compileAndTestDependsOn(core)
   .settings(

@@ -1,5 +1,13 @@
 users {
 
+  ADD ENUM Sex VALUES ('undefined')
+
+  RENAME ENUM Sex VALUES ('male' -> 'M', 'female' -> 'F' )
+
+  REMOVE RECORD User FIELDS { surname }
+
+  RENAME RECORD Credential FIELDS { passwordHash -> hash }
+
   RENAME createUser -> newUser
 }
 
@@ -7,5 +15,5 @@ notification {
 
   REMOVE onMailSent
 
-  REMOVE MailSent
+  ADD RECORD MailSent FIELDS { when: String }
 }

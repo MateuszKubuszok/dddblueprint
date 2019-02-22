@@ -14,10 +14,13 @@ import scala.collection.immutable.{ ListMap, ListSet }
 // scalastyle:off method.name
 // scalastyle:off number.of.methods
 @SuppressWarnings(
-  Array("org.wartremover.warts.Equals",
-        "org.wartremover.warts.Null",
-        "org.wartremover.warts.Var",
-        "org.wartremover.warts.While")
+  Array(
+    "org.wartremover.warts.Equals",
+    "org.wartremover.warts.Null",
+    "org.wartremover.warts.StringPlusAny",
+    "org.wartremover.warts.Var",
+    "org.wartremover.warts.While"
+  )
 )
 object Parser {
 
@@ -42,6 +45,7 @@ object Parser {
     def domain[_: P]: P[Unit] = P(IgnoreCase("domain"))
 
     def create[_: P]: P[Unit] = P(IgnoreCase("create"))
+    def add[_:    P]: P[Unit] = P(IgnoreCase("add"))
     def remove[_: P]: P[Unit] = P(IgnoreCase("remove"))
     def rename[_: P]: P[Unit] = P(IgnoreCase("rename"))
 
@@ -68,11 +72,13 @@ object Parser {
   }
 
   object Input {
+
     def name[_: P]: P[String] = P(
-      ((CharIn("a-z") | CharIn("A-Z") | "_" | "-") ~ (CharIn("0-9") | CharIn("a-z") | CharIn("A-Z") | "_" | "-").rep).!
+      ((CharIn("a-z") | CharIn("A-Z") | "_") ~~ (CharIn("0-9") | CharIn("a-z") | CharIn("A-Z") | "_" | "-").repX).!
     )
-    def number[_: P]: P[String] = P(CharIn("0-9").rep.!)
-    def text[_:   P]: P[String] = P(Keyword.`'` ~ CharsWhile(_ =!= '\'').! ~ Keyword.`'`)
+    def number[_:  P]: P[String] = P(("-".? ~~ CharIn("0-9").repX(1) ~~ ("." ~~ CharIn("0-9").repX).?).!)
+    def text[_:    P]: P[String] = P(Keyword.`'` ~~ CharsWhile(_ =!= '\'').! ~~ Keyword.`'`)
+    def literal[_: P]: P[String] = P(number | text)
   }
 
   object NonTerminal {
@@ -128,7 +134,7 @@ object Parser {
     // definitions
 
     def enumDefinition[_: P]: P[DomainRef => Data.Definition.Enum] =
-      P(enum ~ of ~ enumerable ~ name ~ `(` ~/ (text | number).rep(sep = `,`) ~ `)`).map {
+      P(enum ~ of ~ enumerable ~ name ~ `(` ~/ literal.rep(sep = `,`) ~ `)`).map {
         case (etype, name, values) =>
           (domainRef: DomainRef) =>
             Data.Definition.Enum(DefinitionRef(domainRef, name), values.to[ListSet], etype)
@@ -186,47 +192,47 @@ object Parser {
         Action.CreateDefinition(definitionf(domainRef))
       }
     def removeDefinitionAction[_: P]: P[DomainRef => Action.RemoveDefinition] =
-      P(remove ~ name).map { name => (domainRef: DomainRef) =>
+      P(remove ~ !(enum | record) ~ name).map { name => (domainRef: DomainRef) =>
         Action.RemoveDefinition(DefinitionRef(domainRef, name))
       }
     def renameDefinitionAction[_: P]: P[DomainRef => Action.RenameDefinition] =
-      P(rename ~ name ~ `->` ~ name).map {
+      P(rename ~ !(enum | record) ~ name ~ `->` ~/ name).map {
         case (oldName, newName) =>
           (domainRef: DomainRef) =>
             Action.RenameDefinition(DefinitionRef(domainRef, oldName), newName)
       }
     def addEnumValuesAction[_: P]: P[DomainRef => Action.AddEnumValues] =
-      P(create ~ enum ~ name ~ values ~/ `(` ~ name.rep(sep = `,`) ~ `)`).map {
+      P(add ~ enum ~/ name ~ values ~/ `(` ~ literal.rep(sep = `,`) ~ `)`).map {
         case (name, newValues) =>
           (domainRef: DomainRef) =>
             Action.AddEnumValues(DefinitionRef(domainRef, name), newValues.to[ListSet])
       }
     def removeEnumValuesAction[_: P]: P[DomainRef => Action.RemoveEnumValues] =
-      P(remove ~ enum ~ name ~ values ~/ `(` ~ name.rep(sep = `,`) ~ `)`).map {
+      P(remove ~ enum ~/ name ~ values ~/ `(` ~ literal.rep(sep = `,`) ~ `)`).map {
         case (name, removedValues) =>
           (domainRef: DomainRef) =>
             Action.RemoveEnumValues(DefinitionRef(domainRef, name), removedValues.to[ListSet])
       }
     def renameEnumValuesAction[_: P]: P[DomainRef => Action.RenameEnumValues] =
-      P(rename ~ enum ~ name ~ values ~/ `(` ~ (name ~ `->` ~ name).rep(sep = `,`) ~ `)`).map {
+      P(rename ~ enum ~/ name ~ values ~/ `(` ~ (literal ~ `->` ~ literal).rep(sep = `,`) ~ `)`).map {
         case (name, renamedValues) =>
           (domainRef: DomainRef) =>
             Action.RenameEnumValues(DefinitionRef(domainRef, name), ListMap(renamedValues.toSeq: _*))
       }
     def addRecordFieldsAction[_: P]: P[DomainRef => Action.AddRecordFields] =
-      P(create ~ record ~ name ~ fields ~/ fieldSet).map {
+      P(add ~ record ~/ name ~ fields ~/ fieldSet).map {
         case (name, newFields) =>
           (domainRef: DomainRef) =>
             Action.AddRecordFields(DefinitionRef(domainRef, name), newFields(domainRef))
       }
     def removeRecordFieldsAction[_: P]: P[DomainRef => Action.RemoveRecordFields] =
-      P(remove ~ record ~ name ~ fields ~/ `{` ~ name.rep(sep = `,`) ~ `}`).map {
+      P(remove ~ record ~/ name ~ fields ~/ `{` ~ name.rep(sep = `,`) ~ `}`).map {
         case (name, removedFields) =>
           (domainRef: DomainRef) =>
             Action.RemoveRecordFields(DefinitionRef(domainRef, name), removedFields.to[ListSet])
       }
     def renameRecordFieldsAction[_: P]: P[DomainRef => Action.RenameRecordFields] =
-      P(rename ~ record ~ name ~ fields ~/ `{` ~ (name ~ `->` ~ name).rep(sep = `,`) ~ `}`).map {
+      P(rename ~ record ~/ name ~ fields ~/ `{` ~ (name ~ `->` ~ name).rep(sep = `,`) ~ `}`).map {
         case (name, renamedFields) =>
           (domainRef: DomainRef) =>
             Action.RenameRecordFields(DefinitionRef(domainRef, name), ListMap(renamedFields.toSeq: _*))
