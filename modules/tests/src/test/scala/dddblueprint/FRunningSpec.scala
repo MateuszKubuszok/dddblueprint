@@ -28,7 +28,7 @@ object FRunningSpec {
   type IO[A]      = Coeval[A]
   type StateIO[A] = StateT[IO, output.Snapshot, A]
 
-  private val implicits = locally {
+  val implicits = locally {
     import cats.mtl.implicits._
 
     val logger = Logger("tests")

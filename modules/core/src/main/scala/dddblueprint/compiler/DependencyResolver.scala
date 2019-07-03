@@ -5,8 +5,6 @@ import cats.implicits._
 import dddblueprint.output.Dependencies
 import monocle.macros.syntax.lens._
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 object DependencyResolver {
 
   val argToRef: output.Argument => ListSet[output.DefinitionRef] = {

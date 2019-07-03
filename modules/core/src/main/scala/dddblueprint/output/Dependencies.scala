@@ -1,11 +1,10 @@
-package dddblueprint.output
+package dddblueprint
+package output
 
 import cats.Eq
 import cats.implicits._
 import cats.derived.ShowPretty
 import io.scalaland.catnip.Semi
-
-import scala.collection.immutable.ListSet
 
 @Semi(Eq, ShowPretty) final case class Dependencies(direct:     ListSet[DefinitionRef],
                                                     transitive: ListSet[DefinitionRef]) {

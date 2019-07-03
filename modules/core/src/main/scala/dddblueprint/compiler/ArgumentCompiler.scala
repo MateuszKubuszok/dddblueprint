@@ -30,5 +30,6 @@ import io.scalaland.pulp.Cached
 
 object ArgumentCompiler {
 
-  @inline def apply[F[_]](implicit argumentCompiler: ArgumentCompiler[F]): ArgumentCompiler[F] = argumentCompiler
+  @inline def apply[StateIO[_]](implicit argumentCompiler: ArgumentCompiler[StateIO]): ArgumentCompiler[StateIO] =
+    argumentCompiler
 }

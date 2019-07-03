@@ -13,7 +13,7 @@ object syntax { // scalastyle:ignore object.name
   trait LogWithF { def apply[F[_]:                        Logging]: F[Unit] }
   trait LogErrorWithF extends LogWithF { def withEx[F[_]: Logging](ex: Throwable): F[Unit] }
 
-  implicit class LoggerContext(val sc: StringContext) extends AnyVal {
+  implicit final class LoggerContext(val sc: StringContext) extends AnyVal {
 
     def debug(args: ShowLifted*): LogWithF = new LogWithF {
       def apply[F[_]: Logging]: F[Unit] = Logging[F].debug(sc.raw(args.map(_.value()): _*))

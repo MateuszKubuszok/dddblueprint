@@ -11,8 +11,6 @@ import io.scalaland.catnip.Semi
 import monocle.macros._
 import monocle.Prism
 
-import scala.collection.immutable.ListSet
-
 @Semi(Eq, ShowPretty) sealed trait SchemaError extends ADT
 object SchemaError {
   @Semi(Eq, ShowPretty) final case class Wrapper(errors: NonEmptyList[SchemaError]) extends RuntimeException

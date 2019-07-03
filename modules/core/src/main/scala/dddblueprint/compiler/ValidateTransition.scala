@@ -14,8 +14,6 @@ import io.scalaland.catnip.Semi
 import io.scalaland.pulp.Cached
 import monocle.macros.syntax.lens._
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 @Cached final class ValidateTransition[StateIO[_]: Sync: SnapshotState] {
 
   private val mockDefinition = output.DefinitionName(output.DomainRef(new UUID(0, 0)), "undefined")
@@ -415,6 +413,6 @@ object ValidateTransition {
     }
   }
 
-  @inline def apply[F[_]](implicit validateTransition: ValidateTransition[F]): ValidateTransition[F] =
+  @inline def apply[StateIO[_]](implicit validateTransition: ValidateTransition[StateIO]): ValidateTransition[StateIO] =
     validateTransition
 }

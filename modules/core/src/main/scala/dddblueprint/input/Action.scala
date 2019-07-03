@@ -6,8 +6,6 @@ import cats.derived.ShowPretty
 import cats.implicits._
 import io.scalaland.catnip.Semi
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 @Semi(Eq, ShowPretty) sealed trait Action extends ADT
 object Action {
 

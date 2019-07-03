@@ -19,5 +19,5 @@ import monocle.macros.syntax.lens._
 
 object HistoryCompiler {
 
-  @inline def apply[F[_]](implicit historyCompiler: HistoryCompiler[F]): HistoryCompiler[F] = historyCompiler
+  @inline def apply[IO[_]](implicit historyCompiler: HistoryCompiler[IO]): HistoryCompiler[IO] = historyCompiler
 }

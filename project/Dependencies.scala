@@ -32,6 +32,7 @@ object Dependencies {
   val catnip             = "io.scalaland"                 %% "catnip"                    % "0.5.1"
   val chimney            = "io.scalaland"                 %% "chimney"                   % "0.3.0"
   val pulp               = "io.scalaland"                 %% "pulp"                      % "0.0.8"
+  val matrioshka         = "com.slamdata"                 %% "matryoshka-core"           % "0.18.3"
   val monocle            = "com.github.julien-truffaut"   %% "monocle-core"              % monocleVersion
   val monocleMacro       = "com.github.julien-truffaut"   %% "monocle-macro"             % monocleVersion
   val shapeless          = "com.chuusai"                  %% "shapeless"                 % "2.3.3"
@@ -44,6 +45,8 @@ object Dependencies {
   val pureConfig         = "com.github.pureconfig"        %% "pureconfig"                % "0.9.2"  excludeAll (
           ExclusionRule(   "org.scala-lang")
   )
+  // generating
+  val scalameta          = "org.scalameta"                %% "scalameta"                 % "4.1.0"
   // parsing
   val fastparse          = "com.lihaoyi"                  %% "fastparse"                 % "2.1.0"
   // logging
@@ -74,19 +77,19 @@ trait Dependencies {
 
   val testDeps = Seq(catsLaws, spec2Core, spec2Mock, spec2Scalacheck)
 
-  implicit class ProjectRoot(project: Project) {
+  implicit final class ProjectRoot(project: Project) {
 
     def root: Project = project in file(".")
   }
 
-  implicit class ProjectFrom(project: Project) {
+  implicit final class ProjectFrom(project: Project) {
 
     private val commonDir = "modules"
 
     def from(dir: String): Project = project in file(s"$commonDir/$dir")
   }
 
-  implicit class DependsOnProject(project: Project) {
+  implicit final class DependsOnProject(project: Project) {
 
     private val testConfigurations = Set("test", "fun", "it")
     private def findCompileAndTestConfigs(p: Project) =

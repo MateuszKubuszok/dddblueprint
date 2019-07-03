@@ -5,11 +5,11 @@ import cats.implicits._
 import cats.{ Monad, Traverse }
 import io.scalaland.pulp.Cached
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
+// scalastyle:off no.whitespace.after.left.bracket
 @Cached final class ActionCompiler[
   StateIO[_]: Monad: SchemaErrorRaise: SnapshotState: SnapshotOperations: ArgumentCompiler
 ] {
+  // scalastyle:on no.whitespace.after.left.bracket
 
   private def mapFields(fields: input.Data.Definition.FieldSet): StateIO[output.Data.Definition.FieldSet] =
     Traverse[ListMap[String, ?]].sequence[StateIO, output.Argument](fields.map {
@@ -278,5 +278,6 @@ import scala.collection.immutable.{ ListMap, ListSet }
 
 object ActionCompiler {
 
-  @inline def apply[F[_]](implicit actionCompiler: ActionCompiler[F]): ActionCompiler[F] = actionCompiler
+  @inline def apply[StateIO[_]](implicit actionCompiler: ActionCompiler[StateIO]): ActionCompiler[StateIO] =
+    actionCompiler
 }

@@ -52,6 +52,9 @@ trait syntax {
 
     def validateTransition[F[_]: ValidateTransition](newVersion: output.Snapshot): F[Unit] =
       ValidateTransition[F].apply(snapshot, newVersion)
+
+    def resolveApplicableDiffs[F[_]: ApplicableDiffResolver](migration: input.Migration): F[Unit] =
+      ApplicableDiffResolver[F].apply(migration)
   }
 }
 

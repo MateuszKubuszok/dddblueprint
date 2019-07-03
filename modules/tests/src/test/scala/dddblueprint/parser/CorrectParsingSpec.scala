@@ -5,8 +5,6 @@ import input._
 import io.scalaland.pulp.Provider
 import org.specs2.specification.Scope
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 class CorrectParsingSpec extends ParserSpec {
 
   "Parser" should {

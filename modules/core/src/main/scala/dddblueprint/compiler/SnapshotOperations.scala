@@ -122,6 +122,6 @@ import monocle.macros.syntax.lens._
 
 object SnapshotOperations {
 
-  @inline def apply[F[_]](implicit snapshotOperations: SnapshotOperations[F]): SnapshotOperations[F] =
+  @inline def apply[StateIO[_]](implicit snapshotOperations: SnapshotOperations[StateIO]): SnapshotOperations[StateIO] =
     snapshotOperations
 }

@@ -9,8 +9,6 @@ import ScalaWhitespace._
 import fastparse.Parsed.{ Failure, Success }
 import io.scalaland.pulp.Cached
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 // scalastyle:off method.name
 // scalastyle:off number.of.methods
 @SuppressWarnings(
@@ -268,7 +266,7 @@ object Parser {
   def apply[F[_]](implicit parser: Parser[F]): Parser[F] = parser
 }
 
-@Cached class Parser[F[_]: Sync] {
+@Cached final class Parser[F[_]: Sync] {
 
   import Parser._
 

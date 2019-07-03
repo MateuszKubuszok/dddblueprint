@@ -6,9 +6,13 @@ import cats.implicits._
 import cats.mtl.{ ApplicativeHandle, FunctorRaise }
 import monocle.function._
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 package object dddblueprint {
+
+  type ListMap[K, V] = scala.collection.immutable.ListMap[K, V]
+  val ListMap = scala.collection.immutable.ListMap
+
+  type ListSet[A] = scala.collection.immutable.ListSet[A]
+  val ListSet = scala.collection.immutable.ListSet
 
   // missing type classes for our own convenience
 

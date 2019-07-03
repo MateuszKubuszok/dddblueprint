@@ -17,9 +17,9 @@ import scala.collection.JavaConverters._
 
   def apply(path: String): IO[input.History] =
     load(path).flatMap {
-      case Some(inputs) =>
+      case Some(inputs) if inputs.nonEmpty =>
         Traverse[List].sequence[IO, input.Migration](inputs.map(Parser[IO].apply(_))).map(input.History(_))
-      case None =>
+      case _ =>
         SchemaError.parsingError[IO, input.History](s"Not found migrations in $path")
     }
 

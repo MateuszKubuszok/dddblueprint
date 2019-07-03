@@ -16,10 +16,8 @@ object Settings extends Dependencies {
 
   private val commonSettings = Seq(
     organization := "com.kubuszok",
-
     scalaOrganization := scalaOrganizationUsed,
-    scalaVersion      := scalaVersionUsed,
-
+    scalaVersion := scalaVersionUsed,
     scalafmtVersion := scalaFmtVersionUsed
   )
 
@@ -29,7 +27,8 @@ object Settings extends Dependencies {
     scalacOptions := Seq(
       // standard settings
       "-target:jvm-1.8",
-      "-encoding", "UTF-8",
+      "-encoding",
+      "UTF-8",
       "-unchecked",
       "-deprecation",
       "-explaintypes",
@@ -40,7 +39,8 @@ object Settings extends Dependencies {
       "-language:implicitConversions",
       "-language:postfixOps",
       // private options
-      "-Ybackend-parallelism", "8",
+      "-Ybackend-parallelism",
+      "8",
       "-Yno-adapted-args",
       "-Ypartial-unification",
       // warnings
@@ -86,7 +86,8 @@ object Settings extends Dependencies {
     Compile / console / scalacOptions := Seq(
       // standard settings
       "-target:jvm-1.8",
-      "-encoding", "UTF-8",
+      "-encoding",
+      "UTF-8",
       "-unchecked",
       "-deprecation",
       "-explaintypes",
@@ -100,26 +101,36 @@ object Settings extends Dependencies {
       "-Yno-adapted-args",
       "-Ypartial-unification"
     ),
-
+    Test / console / scalacOptions := Seq(
+      // standard settings
+      "-target:jvm-1.8",
+      "-encoding",
+      "UTF-8",
+      "-unchecked",
+      "-deprecation",
+      "-explaintypes",
+      "-feature",
+      // language features
+      "-language:existentials",
+      "-language:higherKinds",
+      "-language:implicitConversions",
+      "-language:postfixOps",
+      // private options
+      "-Yno-adapted-args",
+      "-Ypartial-unification"
+    ),
     Global / cancelable := true,
-
     Compile / fork := true,
     Compile / trapExit := false,
     Compile / connectInput := true,
     Compile / outputStrategy := Some(StdoutOutput),
-
     resolvers ++= commonResolvers,
-
     libraryDependencies ++= mainDeps,
-
     addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0-M4"),
     addCompilerPlugin("org.scalamacros" %% "paradise" % "2.1.1" cross CrossVersion.full),
     addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.8" cross CrossVersion.binary),
-
     Compile / scalafmtOnCompile := true,
-
     scalastyleFailOnError := true,
-
     Compile / compile / wartremoverWarnings ++= Warts.allBut(
       Wart.Any,
       Wart.DefaultArguments,
@@ -133,43 +144,57 @@ object Settings extends Dependencies {
     )
   )
 
-  implicit class RunConfigurator(project: Project) {
+  implicit final class RunConfigurator(project: Project) {
 
-    def configureRun(main: String): Project = project
-      .settings(inTask(assembly)(Seq(
-        assemblyJarName := s"${name.value}.jar",
-        assemblyMergeStrategy := {
-          case strategy => MergeStrategy.defaultMergeStrategy(strategy)
-        },
-        mainClass := Some(main)
-      )))
-      .settings(Compile / run / mainClass := Some(main))
+    def configureRun(main: String): Project =
+      project
+        .settings(
+          inTask(assembly)(
+            Seq(
+              assemblyJarName := s"${name.value}.jar",
+              assemblyMergeStrategy := {
+                case strategy => MergeStrategy.defaultMergeStrategy(strategy)
+              },
+              mainClass := Some(main)
+            )
+          )
+        )
+        .settings(Compile / run / mainClass := Some(main))
   }
 
-  abstract class TestConfigurator(project: Project, config: Configuration) {
+  sealed abstract class TestConfigurator(project: Project, config: Configuration) {
 
-    protected def configure(requiresFork: Boolean): Project = project
-      .configs(config)
-      .settings(inConfig(config)(Defaults.testSettings): _*)
-      .settings(inConfig(config)(scalafmtSettings))
-      .settings(inConfig(config)(Seq(
-        scalafmtOnCompile := true,
-        scalastyleConfig := baseDirectory.value / "scalastyle-test-config.xml",
-        scalastyleFailOnError := false,
-        fork := requiresFork,
-        testFrameworks := Seq(Specs2)
-      )))
-      .settings(libraryDependencies ++= testDeps map (_ % config.name))
-      .enablePlugins(ScoverageSbtPlugin)
+    protected def configure(requiresFork: Boolean): Project =
+      project
+        .configs(config)
+        .settings(inConfig(config)(Defaults.testSettings): _*)
+        .settings(inConfig(config)(scalafmtSettings))
+        .settings(
+          inConfig(config)(
+            Seq(
+              scalafmtOnCompile := true,
+              scalastyleConfig := baseDirectory.value / "scalastyle-test-config.xml",
+              scalastyleFailOnError := false,
+              fork := requiresFork,
+              testFrameworks := Seq(Specs2)
+            )
+          )
+        )
+        .settings(libraryDependencies ++= testDeps map (_ % config.name))
+        .enablePlugins(ScoverageSbtPlugin)
 
-    protected def configureSequential(requiresFork: Boolean): Project = configure(requiresFork)
-      .settings(inConfig(config)(Seq(
-        testOptions += Argument(Specs2, "sequential"),
-        parallelExecution  := false
-      )))
+    protected def configureSequential(requiresFork: Boolean): Project =
+      configure(requiresFork).settings(
+        inConfig(config)(
+          Seq(
+            testOptions += Argument(Specs2, "sequential"),
+            parallelExecution := false
+          )
+        )
+      )
   }
 
-  implicit class DataConfigurator(project: Project) {
+  implicit final class DataConfigurator(project: Project) {
 
     def setName(newName: String): Project = project.settings(name := newName)
 
@@ -179,31 +204,32 @@ object Settings extends Dependencies {
       project.settings(initialCommands := s"import ${("dddblueprint._" +: newInitialCommand.toList).mkString(", ")}")
   }
 
-  implicit class RootConfigurator(project: Project) {
+  implicit final class RootConfigurator(project: Project) {
 
     def configureRoot: Project = project.settings(rootSettings: _*)
   }
 
-  implicit class ModuleConfigurator(project: Project) {
+  implicit final class ModuleConfigurator(project: Project) {
 
     def configureModule: Project = project.settings(modulesSettings: _*).enablePlugins(GitVersioning)
   }
 
-  implicit class UnitTestConfigurator(project: Project) extends TestConfigurator(project, Test) {
+  implicit final class UnitTestConfigurator(project: Project) extends TestConfigurator(project, Test) {
 
     def configureTests(requiresFork: Boolean = false): Project = configure(requiresFork)
 
     def configureTestsSequential(requiresFork: Boolean = false): Project = configureSequential(requiresFork)
   }
 
-  implicit class FunctionalTestConfigurator(project: Project) extends TestConfigurator(project, FunctionalTest) {
+  implicit final class FunctionalTestConfigurator(project: Project) extends TestConfigurator(project, FunctionalTest) {
 
     def configureFunctionalTests(requiresFork: Boolean = false): Project = configure(requiresFork)
 
     def configureFunctionalTestsSequential(requiresFork: Boolean = false): Project = configureSequential(requiresFork)
   }
 
-  implicit class IntegrationTestConfigurator(project: Project) extends TestConfigurator(project, IntegrationTest) {
+  implicit final class IntegrationTestConfigurator(project: Project)
+      extends TestConfigurator(project, IntegrationTest) {
 
     def configureIntegrationTests(requiresFork: Boolean = false): Project = configure(requiresFork)
 

@@ -1,8 +1,6 @@
 package dddblueprint
 package output
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 object Fixtures {
 
   val Domain1Ref = output.DomainRef()

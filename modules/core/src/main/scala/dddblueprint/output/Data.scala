@@ -8,8 +8,6 @@ import cats.derived.ShowPretty
 import cats.implicits._
 import io.scalaland.catnip.Semi
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 sealed trait Argument extends ADT {
 
   def argumentType: Argument.Type

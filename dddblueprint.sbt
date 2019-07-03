@@ -5,7 +5,7 @@ lazy val root = project.root
   .setName("dddblueprint")
   .setDescription("Build of dddblueprint")
   .configureRoot
-  .aggregate(core, parser, logback, tests)
+  .aggregate(core, parser, logback, backend, tests)
 
 lazy val core = project.from("core")
   .setName("dddblueprint-core")
@@ -38,12 +38,22 @@ lazy val logback = project.from("logback")
     libraryDependencies ++= Seq(Dependencies.scalaLogging, Dependencies.logback)
   )
 
+lazy val backend = project.from("backend")
+  .setName("dddblueprint-backend")
+  .setDescription("Backend of code generation part")
+  .configureModule
+  .compileAndTestDependsOn(core)
+  .settings(
+    libraryDependencies ++= Seq(Dependencies.scalameta)
+  )
+
+
 lazy val tests = project.from("tests")
   .setName("tests")
   .setDescription("dddblueprint-tests")
   .configureModule
   .configureTests(requiresFork = true)
-  .dependsOn(core % "test->compile", parser % "test->compile", logback % "test->compile")
+  .dependsOn(core % "test->compile", parser % "test->compile", logback % "test->compile", backend % "test->compile")
   .settings(
     libraryDependencies ++= Seq(Dependencies.monixEval, Dependencies.monixExecution)
   )

@@ -4,8 +4,6 @@ package input
 import cats.Eq, cats.derived.ShowPretty, cats.implicits._
 import io.scalaland.catnip.Semi
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 sealed trait Argument extends ADT
 object Argument {
 

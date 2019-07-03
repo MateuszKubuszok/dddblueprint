@@ -3,25 +3,28 @@ package output
 
 import alleycats.Zero
 import cats.Eq
+import cats.data.NonEmptyList
 import cats.derived.ShowPretty
 import cats.implicits._
+import io.scalaland.catnip.Semi
 import monocle.function.Index
 import monocle.macros.syntax.lens._
 import monocle.macros.GenLens
-import io.scalaland.catnip.Semi
-
-import scala.collection.immutable.ListMap
 
 @Semi(Eq, ShowPretty) final case class Snapshot(
-  namespaces:          Namespaces                           = Namespaces(),
-  domains:             ListMap[DomainRef, Definitions]      = ListMap.empty,
-  version:             Int                                  = 0,
-  automaticMigrations: ListMap[DefinitionRef, Dependencies] = ListMap.empty,
-  manualMigrations:    ListMap[DefinitionRef, Dependencies] = ListMap.empty
+  namespaces:          Namespaces                                           = Namespaces(),
+  domains:             ListMap[DomainRef, Definitions]                      = ListMap.empty,
+  version:             Int                                                  = 0,
+  automaticMigrations: ListMap[DefinitionRef, Dependencies]                 = ListMap.empty,
+  manualMigrations:    ListMap[DefinitionRef, Dependencies]                 = ListMap.empty,
+  applicableDiffs:     ListMap[DefinitionRef, NonEmptyList[ApplicableDiff]] = ListMap.empty
 ) {
 
   def bumpVersion: Snapshot =
-    copy(version = version + 1, automaticMigrations = ListMap.empty, manualMigrations = ListMap.empty)
+    copy(version             = version + 1,
+         automaticMigrations = ListMap.empty,
+         manualMigrations    = ListMap.empty,
+         applicableDiffs     = ListMap.empty)
 
   lazy val definitions: ListMap[DefinitionRef, Data.Definition] =
     domains.values.map(_.definitions).foldLeft(ListMap.empty[DefinitionRef, Data.Definition])(_ ++ _)
@@ -37,6 +40,13 @@ import scala.collection.immutable.ListMap
       domainName <- namespaces.domains.get(domainRef)
       name <- namespaces.definitions.get(ref)
     } yield s"$domainName.$name"
+
+  def findDomainNameAndName(ref: DefinitionRef): Option[(String, String)] =
+    for {
+      domainRef <- findDomain(ref)
+      domainName <- namespaces.domains.get(domainRef)
+      name <- findName(ref)
+    } yield domainName.name -> name
 
   private def domainIndex(ref: output.DomainRef) =
     Index.fromAt[ListMap[output.DomainRef, output.Definitions], output.DomainRef, output.Definitions].index(ref)

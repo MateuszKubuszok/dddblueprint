@@ -5,8 +5,6 @@ import cats.data.NonEmptyList
 import io.scalaland.pulp.Provider
 import org.specs2.specification.Scope
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 class ValidateTransitionSpec extends CompilerSpec {
 
   "ValidateTransition" should {

@@ -5,7 +5,7 @@ import cats.effect.Sync
 import com.typesafe.scalalogging.Logger
 import io.scalaland.pulp.{ Cached, Provider }
 
-@Cached class LogbackLogging[F[_]: Sync] extends debug.Logging[F] {
+@Cached final class LogbackLogging[F[_]: Sync] extends debug.Logging[F] {
 
   private val logger = Logger("dddblueprint")
 

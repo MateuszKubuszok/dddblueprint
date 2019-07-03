@@ -7,7 +7,7 @@ import cats.{ ~>, Monad }
 import cats.data.Validated.{ Invalid, Valid }
 import cats.data.{ NonEmptyList, ValidatedNel }
 import dddblueprint.compiler.MigrationCompiler.Intermediate
-import io.scalaland.pulp.{ Cached }
+import io.scalaland.pulp.Cached
 
 sealed trait FixedMigrationCompiler[IO[_]] {
 
@@ -22,7 +22,7 @@ object FixedMigrationCompiler {
 
 // scalastyle:off no.whitespace.after.left.bracket
 @Cached final class MigrationCompiler[
-  StateIO[_]: Monad: SnapshotState: SchemaErrorHandle: ActionCompiler: ValidateTransition,
+  StateIO[_]: Monad: SnapshotState: SchemaErrorHandle: ActionCompiler: ValidateTransition: ApplicableDiffResolver,
   IO[_]
 ](implicit runState: StateIO ~> IO)
     extends FixedMigrationCompiler[IO] {
@@ -35,6 +35,8 @@ object FixedMigrationCompiler {
         _ <- combineMigrations(migration.actions, oldVersion)
         newVersion <- SnapshotState[StateIO].get
         _ <- oldVersion.validateTransition[StateIO](newVersion)
+        validatedVersion <- SnapshotState[StateIO].get
+        _ <- validatedVersion.resolveApplicableDiffs[StateIO](migration)
         result <- SnapshotState[StateIO].get
       } yield result
     )

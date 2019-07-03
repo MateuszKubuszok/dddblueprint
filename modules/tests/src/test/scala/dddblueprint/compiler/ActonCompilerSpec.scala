@@ -6,8 +6,6 @@ import io.scalaland.pulp.Provider
 import monocle.macros.syntax.lens._
 import org.specs2.specification.Scope
 
-import scala.collection.immutable.{ ListMap, ListSet }
-
 class ActonCompilerSpec extends CompilerSpec {
 
   "ActionCompiler on CreateDefinition" should {

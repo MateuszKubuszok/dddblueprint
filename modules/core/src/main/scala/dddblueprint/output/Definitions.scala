@@ -1,8 +1,6 @@
 package dddblueprint
 package output
 
-import scala.collection.immutable.ListMap
-
 import cats.Eq, cats.derived.ShowPretty, cats.implicits._
 import io.scalaland.catnip.Semi
 
