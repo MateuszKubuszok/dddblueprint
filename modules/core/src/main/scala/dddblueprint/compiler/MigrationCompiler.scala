@@ -1,9 +1,10 @@
 package dddblueprint
 package compiler
 
+import alleycats.Zero
 import cats.implicits._
 import cats.mtl.implicits._
-import cats.{ ~>, Monad }
+import cats.{ ~>, FlatMap, Monad }
 import cats.data.Validated.{ Invalid, Valid }
 import cats.data.{ NonEmptyList, ValidatedNel }
 import dddblueprint.compiler.MigrationCompiler.Intermediate
@@ -11,7 +12,7 @@ import io.scalaland.pulp.Cached
 
 sealed trait FixedMigrationCompiler[IO[_]] {
 
-  def apply(migration: input.Migration): IO[output.Snapshot]
+  def apply(migration: input.Migration, previousSnapshot: Option[output.Snapshot]): IO[output.Snapshot]
 }
 
 object FixedMigrationCompiler {
@@ -23,13 +24,14 @@ object FixedMigrationCompiler {
 // scalastyle:off no.whitespace.after.left.bracket
 @Cached final class MigrationCompiler[
   StateIO[_]: Monad: SnapshotState: SchemaErrorHandle: ActionCompiler: ValidateTransition: ApplicableDiffResolver,
-  IO[_]
-](implicit runState: StateIO ~> IO)
+  IO[_]:      FlatMap
+](implicit runState: Zero[output.Snapshot] => (StateIO ~> IO))
     extends FixedMigrationCompiler[IO] {
 // scalastyle:on no.whitespace.after.left.bracket
 
-  def apply(migration: input.Migration): IO[output.Snapshot] =
-    runState(
+  def apply(migration: input.Migration, previousSnapshot: Option[output.Snapshot]): IO[output.Snapshot] = {
+    val startingFrom: Zero[output.Snapshot] = Zero(previousSnapshot.getOrElse(output.Snapshot()))
+    runState(startingFrom).apply[output.Snapshot](
       for {
         oldVersion <- SnapshotState[StateIO].get
         _ <- combineMigrations(migration.actions, oldVersion)
@@ -40,6 +42,7 @@ object FixedMigrationCompiler {
         result <- SnapshotState[StateIO].get
       } yield result
     )
+  }
 
   def combineMigrations(actions: List[input.Action], initialState: output.Snapshot): StateIO[Unit] =
     Monad[StateIO].tailRecM[Intermediate, Unit](Intermediate(actions, initialState)) {

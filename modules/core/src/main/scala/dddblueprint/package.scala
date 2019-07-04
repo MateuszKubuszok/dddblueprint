@@ -136,8 +136,10 @@ package object dddblueprint {
   type SchemaErrorRaise[IO[_]] = FunctorRaise[IO, NonEmptyList[SchemaError]]
   object SchemaErrorRaise { @inline def apply[IO[_]](implicit IO: SchemaErrorRaise[IO]): SchemaErrorRaise[IO] = IO }
 
-  implicit def runState[IO[_]: FlatMap, State: Zero]: StateT[IO, State, ?] ~> IO = new (StateT[IO, State, ?] ~> IO) {
+  implicit def runState[IO[_]: FlatMap, State]: Zero[State] => (StateT[IO, State, ?] ~> IO) =
+    zero =>
+      new (StateT[IO, State, ?] ~> IO) {
 
-    def apply[A](stateIO: StateT[IO, State, A]): IO[A] = stateIO.runA(Zero[State].zero)
-  }
+        def apply[A](stateIO: StateT[IO, State, A]): IO[A] = stateIO.runA(zero.zero)
+    }
 }

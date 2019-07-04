@@ -23,8 +23,8 @@ trait syntax {
 
   implicit class InputMigrationOps(val migration: input.Migration) {
 
-    def compile[F[_]: FixedMigrationCompiler]: F[output.Snapshot] =
-      FixedMigrationCompiler[F].apply(migration)
+    def compile[F[_]: FixedMigrationCompiler](previous: Option[output.Snapshot]): F[output.Snapshot] =
+      FixedMigrationCompiler[F].apply(migration, previous)
   }
 
   implicit class OutputDefinitionRefOps(val definitionRef: output.DefinitionRef) {

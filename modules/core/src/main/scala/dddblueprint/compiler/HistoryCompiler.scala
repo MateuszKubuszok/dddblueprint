@@ -12,7 +12,7 @@ import monocle.macros.syntax.lens._
     history.migrations.foldLeft(output.Blueprint().pure[IO]) { (previousVersion, migration) =>
       for {
         oldBlueprint <- previousVersion
-        lastSnapshot <- migration.compile[IO]
+        lastSnapshot <- migration.compile[IO](oldBlueprint.versions.lastOption)
       } yield oldBlueprint.lens(_.versions).modify(_ :+ lastSnapshot)
     }
 }

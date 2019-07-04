@@ -1,14 +1,12 @@
 package dddblueprint
 package compiler
 
-import alleycats.Zero
 import cats.implicits._
 import debug.syntax._
 
 trait CompilerSpec extends FRunningSpec {
 
-  abstract class TestSnapshot[A](result: StateIO[A])(base: output.Snapshot = Zero[output.Snapshot].zero)
-      extends RefIso {
+  abstract class TestSnapshot[A](result: StateIO[A])(base: output.Snapshot = output.Snapshot()) extends RefIso {
     private lazy val snapshotA = result
       .handleErrorWith {
         case ex @ SchemaError.Wrapper(errors) =>

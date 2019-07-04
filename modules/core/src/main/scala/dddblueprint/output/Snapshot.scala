@@ -1,7 +1,6 @@
 package dddblueprint
 package output
 
-import alleycats.Zero
 import cats.Eq
 import cats.data.NonEmptyList
 import cats.derived.ShowPretty
@@ -126,9 +125,4 @@ import monocle.macros.GenLens
   // assumes definition exists
   def renameDefinition(domainRef: DomainRef, defRef: DefinitionRef, newName: String): Snapshot =
     this.lens(_.namespaces.definitions).modify(_.updated(defRef, output.DefinitionName(domainRef, newName)))
-}
-
-object Snapshot {
-
-  implicit val zero: Zero[Snapshot] = new Zero[Snapshot] { def zero = Snapshot() }
 }

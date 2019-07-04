@@ -19,11 +19,8 @@ import monocle.macros.syntax.lens._
       case Some(ref) =>
         ref.pure[StateIO]
       case None =>
-        for {
-          oldVersion <- SnapshotState[StateIO].get
-          ref = output.DomainRef()
-          _ <- oldVersion.lens(_.namespaces.domains).modify(_ + (ref -> name)).set[StateIO]
-        } yield ref
+        val ref = output.DomainRef()
+        SnapshotState[StateIO].modify { _.lens(_.namespaces.domains).modify(_ + (ref -> name)) }.map(_ => ref)
     }
 
   def getDefinitionRef(name: output.DefinitionName): StateIO[Option[output.DefinitionRef]] =
@@ -34,11 +31,8 @@ import monocle.macros.syntax.lens._
     getDefinitionRef(name).flatMap {
       case Some(ref) => ref.pure[StateIO]
       case None =>
-        for {
-          oldVersion <- SnapshotState[StateIO].get
-          ref = output.DefinitionRef()
-          _ <- oldVersion.lens(_.namespaces.definitions).modify(_ + (ref -> name)).set[StateIO]
-        } yield ref
+        val ref = output.DefinitionRef()
+        SnapshotState[StateIO].modify { _.lens(_.namespaces.definitions).modify(_ + (ref -> name)) }.map(_ => ref)
     }
 
   def definitionToDomain(ref: output.DefinitionRef): StateIO[output.DomainRef] =
