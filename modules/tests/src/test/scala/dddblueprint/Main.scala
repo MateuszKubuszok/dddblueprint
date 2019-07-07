@@ -7,6 +7,7 @@ import cats.implicits._
 import cats.effect.Sync
 import dddblueprint.compiler.{ FixedMigrationCompiler, HistoryCompiler, MigrationCompiler, SnapshotState }
 import dddblueprint.debug.Logging
+import dddblueprint.debug.syntax._
 import dddblueprint.parser.DirectoryParser
 import io.scalaland.pulp._
 
@@ -29,19 +30,19 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     import cats.mtl.implicits._
-    (for {
-      _ <- Logging[IO].info(s"Resolved relatively to ${new File(".").getAbsolutePath}")
+    for {
+      _ <- info"""Resolved relatively to ${new File(".").getAbsolutePath}"""[IO]
       _ <- args.toList.traverse { directory =>
         (for {
-          _ <- Logging[IO].info(directory)
+          _ <- info"""Parsing data from $directory"""[IO]
           history <- DirectoryParser(directory)
-          _ <- Logging[IO].info(history.show)
+          _ <- info"""Input history:\n$history"""[IO]
           blueprint <- HistoryCompiler(history)
-          _ <- Logging[IO].info(blueprint.show)
-        } yield ()).handleWith[NonEmptyList[SchemaError]] { errors =>
-          errors.toList.traverse(error => Logging[IO].error(error.show)).void
+          _ <- info"""Output blueprint:\n$blueprint"""[IO]
+        } yield ()).handleWith[NonEmptyList[SchemaError]] {
+          _.toList.traverse(e => error"""$e"""[IO]).void
         }
       }
-    } yield ()).value
-  }
+    } yield ()
+  }.value
 }
