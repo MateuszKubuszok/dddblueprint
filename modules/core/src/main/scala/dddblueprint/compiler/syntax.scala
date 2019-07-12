@@ -55,6 +55,9 @@ trait syntax {
 
     def resolveApplicableDiffs[F[_]: ApplicableDiffResolver](migration: input.Migration): F[Unit] =
       ApplicableDiffResolver[F].apply(migration)
+
+    def resolveManualDiffs[F[_]: ManualDiffResolver](migration: input.Migration): F[Unit] =
+      ManualDiffResolver[F].apply(migration)
   }
 }
 

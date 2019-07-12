@@ -16,14 +16,18 @@ import monocle.macros.GenLens
   version:             Int                                                  = 0,
   automaticMigrations: ListMap[DefinitionRef, Dependencies]                 = ListMap.empty,
   manualMigrations:    ListMap[DefinitionRef, Dependencies]                 = ListMap.empty,
-  applicableDiffs:     ListMap[DefinitionRef, NonEmptyList[ApplicableDiff]] = ListMap.empty
+  applicableDiffs:     ListMap[DefinitionRef, NonEmptyList[ApplicableDiff]] = ListMap.empty,
+  manualDiffs:         ListMap[DefinitionRef, NonEmptyList[ManualDiff]]     = ListMap.empty
 ) {
 
   def bumpVersion: Snapshot =
-    copy(version             = version + 1,
-         automaticMigrations = ListMap.empty,
-         manualMigrations    = ListMap.empty,
-         applicableDiffs     = ListMap.empty)
+    copy(
+      version             = version + 1,
+      automaticMigrations = ListMap.empty,
+      manualMigrations    = ListMap.empty,
+      applicableDiffs     = ListMap.empty,
+      manualDiffs         = ListMap.empty
+    )
 
   lazy val definitions: ListMap[DefinitionRef, Data.Definition] =
     domains.values.map(_.definitions).foldLeft(ListMap.empty[DefinitionRef, Data.Definition])(_ ++ _)

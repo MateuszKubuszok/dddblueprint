@@ -22,11 +22,19 @@ object FixedMigrationCompiler {
 }
 
 // scalastyle:off no.whitespace.after.left.bracket
+// format: off
 @Cached final class MigrationCompiler[
-  StateIO[_]: Monad: SnapshotState: SchemaErrorHandle: ActionCompiler: ValidateTransition: ApplicableDiffResolver,
-  IO[_]:      FlatMap
+  StateIO[_]: Monad
+            : SnapshotState
+            : SchemaErrorHandle
+            : ActionCompiler
+            : ValidateTransition
+            : ApplicableDiffResolver
+            : ManualDiffResolver,
+  IO[_]     : FlatMap
 ](implicit runState: Zero[output.Snapshot] => (StateIO ~> IO))
     extends FixedMigrationCompiler[IO] {
+// format: on
 // scalastyle:on no.whitespace.after.left.bracket
 
   def apply(migration: input.Migration, previousSnapshot: Option[output.Snapshot]): IO[output.Snapshot] = {
@@ -39,6 +47,7 @@ object FixedMigrationCompiler {
         _ <- oldVersion.validateTransition[StateIO](newVersion)
         validatedVersion <- SnapshotState[StateIO].get
         _ <- validatedVersion.resolveApplicableDiffs[StateIO](migration)
+        _ <- validatedVersion.resolveManualDiffs[StateIO](migration)
         result <- SnapshotState[StateIO].get
       } yield result
     )

@@ -4,8 +4,11 @@ package debug
 import cats.syntax.show._
 import cats.Show
 
+import scala.annotation.implicitNotFound
+
 object syntax { // scalastyle:ignore object.name
 
+  @implicitNotFound("Couldn't find cats.Show to lift - provide one or, call .toString explicitly")
   trait ShowLifted { def value(): String }
 
   implicit def liftWithShow[A: Show](value: A): ShowLifted = () => value.show

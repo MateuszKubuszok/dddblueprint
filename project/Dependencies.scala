@@ -16,7 +16,7 @@ object Dependencies {
   val catsEffectVersion = "1.2.0"
   val monixVersion      = "3.0.0-RC2"
   val monocleVersion    = "1.6.0-M1"
-  val specs2Version     = "4.4.1"
+  val specs2Version     = "4.6.0"
 
   // resolvers
   val resolvers = Seq(
