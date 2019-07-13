@@ -10,6 +10,6 @@ import io.scalaland.catnip.Semi
 @SuppressWarnings(Array("org.wartremover.warts.Equals"))
 object ManualDiff {
   final case object DefinitionRemoved extends ManualDiff
-  final case class EnumValueRemoved(name:   String) extends ManualDiff
-  final case class RecordFieldRemoved(name: String) extends ManualDiff
+  final case class EnumValueRemoved(name: String) extends ManualDiff
+  final case class RecordFieldAdded(name: String, argument: Argument) extends ManualDiff
 }

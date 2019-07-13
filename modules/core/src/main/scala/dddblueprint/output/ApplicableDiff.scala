@@ -9,6 +9,7 @@ import io.scalaland.catnip.Semi
 @Semi(Eq, ShowPretty) sealed trait ApplicableDiff extends ADT
 object ApplicableDiff {
   final case class DefinitionRenamed(to:  String) extends ApplicableDiff
+  final case class FieldRemoved(field:    String) extends ApplicableDiff
   final case class FieldRenamed(from:     String, to: String) extends ApplicableDiff
   final case class EnumValueRenamed(from: String, to: String) extends ApplicableDiff
 }

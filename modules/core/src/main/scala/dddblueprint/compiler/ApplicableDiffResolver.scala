@@ -31,8 +31,9 @@ import monocle.macros.syntax.lens._
     case input.Action.RemoveEnumValues(definition, _) => definition -> ListSet.empty
     case input.Action.RenameEnumValues(definition, rename) =>
       definition -> rename.map(output.ApplicableDiff.EnumValueRenamed.tupled(_): output.ApplicableDiff).to[ListSet]
-    case input.Action.AddRecordFields(definition, _)    => definition -> ListSet.empty
-    case input.Action.RemoveRecordFields(definition, _) => definition -> ListSet.empty
+    case input.Action.AddRecordFields(definition, _) => definition -> ListSet.empty
+    case input.Action.RemoveRecordFields(definition, fields) =>
+      definition -> fields.map(output.ApplicableDiff.FieldRemoved)
     case input.Action.RenameRecordFields(definition, rename) =>
       definition -> rename.map(output.ApplicableDiff.FieldRenamed.tupled(_): output.ApplicableDiff).to[ListSet]
   }

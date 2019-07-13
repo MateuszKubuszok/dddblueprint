@@ -7,11 +7,11 @@ import cats.effect.Sync
 import io.scalaland.pulp.Cached
 import monocle.macros.syntax.lens._
 
-@Cached final class ManualDiffResolver[StateIO[_]: Sync: SnapshotState: SnapshotOperations] {
+@Cached final class ManualDiffResolver[StateIO[_]: Sync: SnapshotState: SnapshotOperations: ArgumentCompiler] {
 
   def apply(migration: input.Migration): StateIO[Unit] =
     for {
-      inputRefToDiffs <- manualDiffsByRefs(migration).pure[StateIO]
+      inputRefToDiffs <- manualDiffsByRefs(migration)
       ioRefs <- inputRefToDiffs.keys.map(ref => ref.translate[StateIO].map(ref -> _)).toList.sequence.map(_.toMap)
       _ <- SnapshotState[StateIO].modify {
         _.lens(_.manualDiffs).set(
@@ -22,39 +22,51 @@ import monocle.macros.syntax.lens._
       }
     } yield ()
 
-  val translateActionToManualDiff: input.Action => (input.DefinitionRef, ListSet[output.ManualDiff]) = {
-    case input.Action.CreateDefinition(definition)    => definition.ref -> ListSet.empty
-    case input.Action.RemoveDefinition(definition)    => definition -> ListSet(output.ManualDiff.DefinitionRemoved)
-    case input.Action.RenameDefinition(definition, _) => definition -> ListSet.empty
-    case input.Action.AddEnumValues(definition, _)    => definition -> ListSet.empty
+  // scalastyle:off cyclomatic.complexity
+  def translateActionToManualDiff: input.Action => StateIO[(input.DefinitionRef, ListSet[output.ManualDiff])] = {
+    case input.Action.CreateDefinition(definition) => (definition.ref -> ListSet.empty[output.ManualDiff]).pure[StateIO]
+    case input.Action.RemoveDefinition(definition) =>
+      (definition -> ListSet[output.ManualDiff](output.ManualDiff.DefinitionRemoved)).pure[StateIO]
+    case input.Action.RenameDefinition(definition, _) => (definition -> ListSet.empty[output.ManualDiff]).pure[StateIO]
+    case input.Action.AddEnumValues(definition, _)    => (definition -> ListSet.empty[output.ManualDiff]).pure[StateIO]
     case input.Action.RemoveEnumValues(definition, values) =>
-      definition -> values.map(output.ManualDiff.EnumValueRemoved)
-    case input.Action.RenameEnumValues(definition, _) => definition -> ListSet.empty
-    case input.Action.AddRecordFields(definition, _)  => definition -> ListSet.empty
-    case input.Action.RemoveRecordFields(definition, fields) =>
-      definition -> fields.map(output.ManualDiff.RecordFieldRemoved)
-    case input.Action.RenameRecordFields(definition, _) => definition -> ListSet.empty
+      (definition -> values.map(output.ManualDiff.EnumValueRemoved(_): output.ManualDiff)).pure[StateIO]
+    case input.Action.RenameEnumValues(definition, _) => (definition -> ListSet.empty[output.ManualDiff]).pure[StateIO]
+    case input.Action.AddRecordFields(definition, fields) =>
+      fields
+        .to[List]
+        .traverse {
+          case (name, arg) =>
+            arg.compile[StateIO].map(output.ManualDiff.RecordFieldAdded(name, _): output.ManualDiff)
+        }
+        .map(list => definition -> list.to[ListSet])
+    case input.Action.RemoveRecordFields(definition, _) =>
+      (definition -> ListSet.empty[output.ManualDiff]).pure[StateIO]
+    case input.Action.RenameRecordFields(definition, _) =>
+      (definition -> ListSet.empty[output.ManualDiff]).pure[StateIO]
   }
+  // scalastyle:on cyclomatic.complexity
 
   @SuppressWarnings(Array("org.wartremover.warts.TraversableOps"))
   def manualDiffsByRefs(
     migration: input.Migration
-  ): ListMap[input.DefinitionRef, NonEmptyList[output.ManualDiff]] = ListMap(
-    migration.actions
-      .map(translateActionToManualDiff)
-      .zipWithIndex
-      .groupBy(_._1._1)
-      .mapValues { values =>
-        values.map(_._2).min -> values.sortBy(_._2).flatMap(_._1._2)
-      }
-      .collect {
-        case (ref, (i, head :: tail)) =>
-          i -> (ref -> NonEmptyList(head, tail))
-      }
-      .toSeq
-      .sortBy(_._1)
-      .map(_._2): _*
-  )
+  ): StateIO[ListMap[input.DefinitionRef, NonEmptyList[output.ManualDiff]]] =
+    migration.actions.traverse(translateActionToManualDiff).map { diffs =>
+      ListMap(
+        diffs.zipWithIndex
+          .groupBy(_._1._1)
+          .mapValues { values =>
+            values.map(_._2).min -> values.sortBy(_._2).flatMap(_._1._2)
+          }
+          .collect {
+            case (ref, (i, head :: tail)) =>
+              i -> (ref -> NonEmptyList(head, tail))
+          }
+          .toSeq
+          .sortBy(_._1)
+          .map(_._2): _*
+      )
+    }
 }
 
 object ManualDiffResolver {
