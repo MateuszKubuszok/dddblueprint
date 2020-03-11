@@ -4,6 +4,7 @@ package input
 import cats.Eq, cats.derived.ShowPretty, cats.implicits._
 import io.scalaland.catnip.Semi
 
+// scalastyle:off number.of.types
 sealed trait Argument extends ADT
 object Argument {
 

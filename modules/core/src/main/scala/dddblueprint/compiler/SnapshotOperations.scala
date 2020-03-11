@@ -100,9 +100,9 @@ import monocle.macros.syntax.lens._
     for {
       internalRef <- translateDefinitionRef(ref)
       definitionExists <- hasDefinition(internalRef)
-      _ <- if (!definitionExists)
+      _ <- if (!definitionExists) {
         SchemaError.definitionMissing[StateIO, Unit](domain = ref.domain.name, name = ref.name)
-      else ().pure[StateIO]
+      } else ().pure[StateIO]
     } yield internalRef
 
   def requireDefinitionNotExisted(ref: input.DefinitionRef): StateIO[output.DefinitionRef] =
