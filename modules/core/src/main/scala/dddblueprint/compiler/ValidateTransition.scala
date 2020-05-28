@@ -129,7 +129,12 @@ import monocle.macros.syntax.lens._
             }
             if !isDepsEvent
             (domain, name) = refToDomainAndName(newVersion, ref)
-          } yield SchemaError.DefinitionTypeMismatch(domain, name, "event", newVersion.definitions(depsRef)): SchemaError
+          } yield SchemaError.DefinitionTypeMismatch(
+            domain,
+            name,
+            "event",
+            newVersion.definitions(depsRef)
+          ): SchemaError
       } match {
         case head :: tail => NonEmptyList[SchemaError](head, tail).raise[StateIO, Unit]
         case Nil          => ().pure[StateIO]

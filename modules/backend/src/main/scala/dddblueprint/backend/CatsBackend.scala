@@ -30,15 +30,15 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
       }
       .getOrElse(SchemaError.invalidRef(ref.id))
 
-  val getPrimitiveType: Data.Primitive => IO[Type] = {
-    case Data.UUID    => "java.util.UUID".parse[Type].get.pure[IO]
-    case Data.Boolean => "scala.Boolean".parse[Type].get.pure[IO]
-    case Data.Int     => "scala.Int".parse[Type].get.pure[IO]
-    case Data.Long    => "scala.Long".parse[Type].get.pure[IO]
-    case Data.Float   => "scala.Float".parse[Type].get.pure[IO]
-    case Data.Double  => "scala.Double".parse[Type].get.pure[IO]
-    case Data.String  => "scala.Predef.String".parse[Type].get.pure[IO]
-  }
+  val getPrimitiveType: Data.Primitive => IO[Type] = Map(
+    Data.UUID -> "java.util.UUID".parse[Type].get.pure[IO],
+    Data.Boolean -> "scala.Boolean".parse[Type].get.pure[IO],
+    Data.Int -> "scala.Int".parse[Type].get.pure[IO],
+    Data.Long -> "scala.Long".parse[Type].get.pure[IO],
+    Data.Float -> "scala.Float".parse[Type].get.pure[IO],
+    Data.Double -> "scala.Double".parse[Type].get.pure[IO],
+    Data.String -> "scala.Predef.String".parse[Type].get.pure[IO]
+  )
 
   def getCollectionType(snapshot: Snapshot): Data.Collection => IO[Type] = {
     val argument: Argument => IO[Type] = getArgumentType(snapshot)
