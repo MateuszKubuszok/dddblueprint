@@ -1,6 +1,6 @@
 import alleycats.Zero
-import cats.{ ~>, Applicative, Eq, Eval, FlatMap, Functor, MonadError, Traverse }
-import cats.data.{ NonEmptyList, StateT }
+import cats.{ ~>, Applicative, Eq, Eval, FlatMap, Functor, MonadError, Show, Traverse }
+import cats.data.{ EitherT, NonEmptyList, StateT }
 import cats.derived.ShowPretty
 import cats.implicits._
 import cats.mtl.{ ApplicativeHandle, FunctorRaise }
@@ -63,14 +63,19 @@ package object dddblueprint {
   private def partitionHeadsLast[A](list: List[A]): (List[A], List[A]) =
     list.take(list.length - 1) -> list.drop(list.length - 1)
 
-  private[dddblueprint] implicit def showListMap[K: ShowPretty, V: ShowPretty]: ShowPretty[ListMap[K, V]] =
+  private def showLinesIfPossible[A](a: A)(implicit show: Show[A]) = show match {
+    case showPretty: ShowPretty[A] => showPretty.showLines(a)
+    case _ => List(show.show(a))
+  }
+
+  private[dddblueprint] implicit def showListMap[K: Show, V: Show]: ShowPretty[ListMap[K, V]] =
     listMap => {
       val (mappedHeads, mappedLast) = partitionHeadsLast(
         listMap.toList
           .map {
             case (k, v) =>
-              val (keyHeads, keyLast) = partitionHeadsLast(implicitly[ShowPretty[K]].showLines(k))
-              val valueLines          = implicitly[ShowPretty[V]].showLines(v)
+              val (keyHeads, keyLast) = partitionHeadsLast(showLinesIfPossible(k))
+              val valueLines          = showLinesIfPossible(v)
 
               keyHeads ++ keyLast.map(_ + " ->") ++ valueLines.map("  " + _)
           }
@@ -83,10 +88,10 @@ package object dddblueprint {
       } ++ mappedLast.flatten ++ List(")")
     }
 
-  private[dddblueprint] implicit def showListSet[A: ShowPretty]: ShowPretty[ListSet[A]] =
+  private[dddblueprint] implicit def showListSet[A: Show]: ShowPretty[ListSet[A]] =
     listSet => {
       val (mappedHeads, mappedLast) = partitionHeadsLast(listSet.toList.map { a =>
-        implicitly[ShowPretty[A]].showLines(a).map("  " + _)
+        showLinesIfPossible(a).map("  " + _)
       })
 
       List("ListSet(") ++ mappedHeads.map(partitionHeadsLast).flatMap {
@@ -111,7 +116,8 @@ package object dddblueprint {
           case Left(throwable)                   => io.raiseError(throwable)
           case Right(value)                      => value.asRight[NonEmptyList[SchemaError]].pure[IO]
         }
-      def handle[A](fa: IO[A])(f: NonEmptyList[SchemaError] => A): IO[A] =
+      def attemptT[A](fa: IO[A]): EitherT[IO, NonEmptyList[SchemaError], A] = EitherT(attempt(fa))
+      def handle[A](fa:   IO[A])(f: NonEmptyList[SchemaError] => A): IO[A] =
         io.handleErrorWith(fa) {
           case SchemaError.Wrapper(errors) => f(errors).pure[IO]
           case _: Throwable => fa
