@@ -62,10 +62,12 @@ import monocle.macros.GenLens
     this.lens(_.namespaces.domains).modify(_ + (domainRef -> output.DomainName(name)))
 
   // ensures definitions exists in namespace
-  def withDefinitionRef(domainRef:     DomainRef,
-                        domainName:    String,
-                        definitionRef: DefinitionRef,
-                        name:          String): Snapshot =
+  def withDefinitionRef(
+    domainRef:     DomainRef,
+    domainName:    String,
+    definitionRef: DefinitionRef,
+    name:          String
+  ): Snapshot =
     this
       .withDomainRef(domainRef, domainName)
       .lens(_.namespaces.definitions)
@@ -86,11 +88,13 @@ import monocle.macros.GenLens
       .modify(_.updated(definitionRef, body))
 
   // ensures refs and definitions are in place
-  def withDefinition(domainRef:     DomainRef,
-                     domainName:    String,
-                     definitionRef: DefinitionRef,
-                     name:          String,
-                     body:          Data.Definition): Snapshot =
+  def withDefinition(
+    domainRef:     DomainRef,
+    domainName:    String,
+    definitionRef: DefinitionRef,
+    name:          String,
+    body:          Data.Definition
+  ): Snapshot =
     this.withDefinitionRef(domainRef, domainName, definitionRef, name).withDefinition(domainRef, definitionRef, body)
 
   // removes definition if there is something to remove

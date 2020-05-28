@@ -31,16 +31,16 @@ object Main {
   def main(args: Array[String]): Unit = {
     import cats.mtl.implicits._
     for {
-      _ <- info"""Resolved relatively to ${new File(".").getAbsolutePath}"""[IO]
+      _ <- info"""Resolved relatively to ${new File(".").getAbsolutePath}""".apply[IO]
       _ <- args.toList.traverse { directory =>
         (for {
-          _ <- info"""Parsing data from $directory"""[IO]
+          _ <- info"""Parsing data from $directory""".apply[IO]
           history <- DirectoryParser(directory)
-          _ <- info"""Input history:\n$history"""[IO]
+          _ <- info"""Input history:\n$history""".apply[IO]
           blueprint <- HistoryCompiler(history)
-          _ <- info"""Output blueprint:\n$blueprint"""[IO]
+          _ <- info"""Output blueprint:\n$blueprint""".apply[IO]
         } yield ()).handleWith[NonEmptyList[SchemaError]] {
-          _.toList.traverse(e => error"""$e"""[IO]).void
+          _.toList.traverse(e => error"""$e""".apply[IO]).void
         }
       }
     } yield ()

@@ -17,7 +17,7 @@ object Argument {
       case (x: Data.Collection, y: Data.Collection) => x === y
       case (x: Data.Tuple, y:      Data.Tuple)      => x === y
       case _ => false
-  }
+    }
   implicit val show: ShowPretty[Argument] = {
     case x: DefinitionRef   => implicitly[ShowPretty[DefinitionRef]].showLines(x)
     case x: Data.Primitive  => implicitly[ShowPretty[Data.Primitive]].showLines(x)
@@ -59,10 +59,11 @@ object Data {
   @Semi(Eq, ShowPretty) sealed abstract class Definition(val ref: DefinitionRef) extends Data
   object Definition {
 
-    @Semi(Eq, ShowPretty) final case class Enum(override val ref: DefinitionRef,
-                                                values:           ListSet[String],
-                                                `type`:           Enumerable)
-        extends Definition(ref)
+    @Semi(Eq, ShowPretty) final case class Enum(
+      override val ref: DefinitionRef,
+      values:           ListSet[String],
+      `type`:           Enumerable
+    ) extends Definition(ref)
 
     // TODO: turn these into a AnyVals with domain methods
     type FieldSet = ListMap[String, Argument]

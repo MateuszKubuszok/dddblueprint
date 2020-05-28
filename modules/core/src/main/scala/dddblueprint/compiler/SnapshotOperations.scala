@@ -11,28 +11,28 @@ import monocle.macros.syntax.lens._
 @Cached final class SnapshotOperations[StateIO[_]: Monad: SchemaErrorRaise: SnapshotState] {
 
   def getDomainRef(name: output.DomainName): StateIO[Option[output.DomainRef]] =
-    SnapshotState[StateIO].inspect { _.namespaces.domains.find(_._2 === name).map(_._1) }
+    SnapshotState[StateIO].inspect(_.namespaces.domains.find(_._2 === name).map(_._1))
   def hasDomainName(name: output.DomainName): StateIO[Boolean] =
-    SnapshotState[StateIO].inspect { _.namespaces.domains.exists(_._2 === name) }
+    SnapshotState[StateIO].inspect(_.namespaces.domains.exists(_._2 === name))
   def withDomainName(name: output.DomainName): StateIO[output.DomainRef] =
     getDomainRef(name).flatMap {
       case Some(ref) =>
         ref.pure[StateIO]
       case None =>
         val ref = output.DomainRef()
-        SnapshotState[StateIO].modify { _.lens(_.namespaces.domains).modify(_ + (ref -> name)) }.map(_ => ref)
+        SnapshotState[StateIO].modify(_.lens(_.namespaces.domains).modify(_ + (ref -> name))).map(_ => ref)
     }
 
   def getDefinitionRef(name: output.DefinitionName): StateIO[Option[output.DefinitionRef]] =
-    SnapshotState[StateIO].inspect { _.namespaces.definitions.find(_._2 === name).map(_._1) }
+    SnapshotState[StateIO].inspect(_.namespaces.definitions.find(_._2 === name).map(_._1))
   def hasDefinitionName(name: output.DefinitionName): StateIO[Boolean] =
-    SnapshotState[StateIO].inspect { _.namespaces.definitions.exists(_._2 === name) }
+    SnapshotState[StateIO].inspect(_.namespaces.definitions.exists(_._2 === name))
   def withDefinitionName(name: output.DefinitionName): StateIO[output.DefinitionRef] =
     getDefinitionRef(name).flatMap {
       case Some(ref) => ref.pure[StateIO]
       case None =>
         val ref = output.DefinitionRef()
-        SnapshotState[StateIO].modify { _.lens(_.namespaces.definitions).modify(_ + (ref -> name)) }.map(_ => ref)
+        SnapshotState[StateIO].modify(_.lens(_.namespaces.definitions).modify(_ + (ref -> name))).map(_ => ref)
     }
 
   def definitionToDomain(ref: output.DefinitionRef): StateIO[output.DomainRef] =

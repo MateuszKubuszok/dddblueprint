@@ -27,10 +27,12 @@ import monocle.macros.syntax.lens._
   private def resolveDependencies(newVersion: output.Snapshot): StateIO[ListMap[output.DefinitionRef, Dependencies]] =
     Sync[StateIO].delay(DependencyResolver.findTransitiveDependencies(newVersion.definitions))
 
-  private def findMissing(version:   output.Snapshot,
-                          ref:       output.DefinitionRef,
-                          isDefined: output.DefinitionRef => Boolean)(
-    usedRefs:                        ListMap[String, output.DefinitionRef]
+  private def findMissing(
+    version:   output.Snapshot,
+    ref:       output.DefinitionRef,
+    isDefined: output.DefinitionRef => Boolean
+  )(
+    usedRefs: ListMap[String, output.DefinitionRef]
   ): List[SchemaError] = {
     val (domain, name) = refToDomainAndName(version, ref)
     val refNames       = usedRefs.map(_.swap)
@@ -44,9 +46,7 @@ import monocle.macros.syntax.lens._
     removedAreNotUsed(newVersion)
       .map2(typesMatches(oldVersion, newVersion))(_ |+| _)
       // then calculate dependencies
-      .flatMap { _ =>
-        resolveDependencies(newVersion)
-      }
+      .flatMap(_ => resolveDependencies(newVersion))
       // do normal checking
       .flatMap { dependencies =>
         pubsubDependsOnlyOnEvents(newVersion, dependencies)
@@ -110,8 +110,10 @@ import monocle.macros.syntax.lens._
   }
   // scalastyle:on
 
-  def pubsubDependsOnlyOnEvents(newVersion:   output.Snapshot,
-                                dependencies: ListMap[output.DefinitionRef, Dependencies]): StateIO[Unit] =
+  def pubsubDependsOnlyOnEvents(
+    newVersion:   output.Snapshot,
+    dependencies: ListMap[output.DefinitionRef, Dependencies]
+  ): StateIO[Unit] =
     Sync[StateIO].defer {
       dependencies.toList.flatMap {
         case (ref, output.Dependencies(direct, _)) =>
@@ -127,16 +129,17 @@ import monocle.macros.syntax.lens._
             }
             if !isDepsEvent
             (domain, name) = refToDomainAndName(newVersion, ref)
-          } yield
-            SchemaError.DefinitionTypeMismatch(domain, name, "event", newVersion.definitions(depsRef)): SchemaError
+          } yield SchemaError.DefinitionTypeMismatch(domain, name, "event", newVersion.definitions(depsRef)): SchemaError
       } match {
         case head :: tail => NonEmptyList[SchemaError](head, tail).raise[StateIO, Unit]
         case Nil          => ().pure[StateIO]
       }
     }
 
-  def eventPublishedInTheirDomain(newVersion:   output.Snapshot,
-                                  dependencies: ListMap[output.DefinitionRef, Dependencies]): StateIO[Unit] =
+  def eventPublishedInTheirDomain(
+    newVersion:   output.Snapshot,
+    dependencies: ListMap[output.DefinitionRef, Dependencies]
+  ): StateIO[Unit] =
     Sync[StateIO].defer {
       dependencies.toList.flatMap {
         case (ref, output.Dependencies(direct, _)) =>
@@ -229,9 +232,11 @@ import monocle.macros.syntax.lens._
    *
    * Definition can have both automatic and manual migrations its dependencies have different circumstances.
    */
-  def calculateMigrations(oldVersion:   output.Snapshot,
-                          newVersion:   output.Snapshot,
-                          dependencies: ListMap[output.DefinitionRef, Dependencies]): StateIO[Unit] =
+  def calculateMigrations(
+    oldVersion:   output.Snapshot,
+    newVersion:   output.Snapshot,
+    dependencies: ListMap[output.DefinitionRef, Dependencies]
+  ): StateIO[Unit] =
     Sync[StateIO].defer {
       val enumsWithRemovedValues = for {
         (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
@@ -287,8 +292,10 @@ import monocle.macros.syntax.lens._
 
       import ValidateTransition.MigrationType
 
-      def findType(ref:      output.DefinitionRef,
-                   solution: Map[output.DefinitionRef, MigrationType]): Option[MigrationType] =
+      def findType(
+        ref:      output.DefinitionRef,
+        solution: Map[output.DefinitionRef, MigrationType]
+      ): Option[MigrationType] =
         solution.get(ref) match {
           case Some(mt) => Some(mt)
           case None =>
@@ -322,12 +329,7 @@ import monocle.macros.syntax.lens._
         if (solution.keySet === allRefs) solution
         else {
           findAllMigrationTypes(
-            allRefs
-              .map { ref =>
-                ref -> findType(ref, solution)
-              }
-              .collect { case (k, Some(v)) => k -> v }
-              .toMap
+            allRefs.map(ref => ref -> findType(ref, solution)).collect { case (k, Some(v)) => k -> v }.toMap
           )
         }
 
@@ -410,7 +412,7 @@ object ValidateTransition {
         case (Automatic, _) => Automatic
         case (_, Automatic) => Automatic
         case _              => Unchanged
-    }
+      }
   }
 
   @inline def apply[StateIO[_]](implicit validateTransition: ValidateTransition[StateIO]): ValidateTransition[StateIO] =

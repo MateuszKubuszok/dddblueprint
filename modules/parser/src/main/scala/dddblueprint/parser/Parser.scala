@@ -91,12 +91,9 @@ object Parser {
     def definitionRef[_: P]: P[DomainRef => DefinitionRef] = P(
       (name ~ `.` ~ name).map {
         case (domain, name) =>
-          (_: DomainRef) =>
-            DefinitionRef(DomainRef(domain), name)
+          (_: DomainRef) => DefinitionRef(DomainRef(domain), name)
       } |
-        name.map { name => (domainRef: DomainRef) =>
-          DefinitionRef(domainRef, name)
-        }
+        name.map(name => (domainRef: DomainRef) => DefinitionRef(domainRef, name))
     )
 
     def option[_: P]: P[DomainRef => Data.Collection.Option] =
@@ -108,14 +105,12 @@ object Parser {
     def map[_: P]: P[DomainRef => Data.Collection.Map] =
       P(`{` ~/ argument ~ `:` ~ argument ~ `}`).map {
         case (k, v) =>
-          (domainRef: DomainRef) =>
-            Data.Collection.Map(k(domainRef), v(domainRef))
+          (domainRef: DomainRef) => Data.Collection.Map(k(domainRef), v(domainRef))
       }
     def collection[_: P]: P[DomainRef => Data.Collection] = P(option | array | set | map)
 
     def tuple[_: P]: P[DomainRef => Data.Tuple] = P(`(` ~/ argument.rep(1, `,`) ~ `)`).map {
-      args => (domainRef: DomainRef) =>
-        Data.Tuple(args.map(_(domainRef)).toList)
+      args => (domainRef: DomainRef) => Data.Tuple(args.map(_(domainRef)).toList)
     }
 
     def argument[_: P]: P[DomainRef => Argument] =
@@ -134,27 +129,23 @@ object Parser {
     def enumDefinition[_: P]: P[DomainRef => Data.Definition.Enum] =
       P(enum ~ of ~ enumerable ~ name ~ `(` ~/ literal.rep(sep = `,`) ~ `)`).map {
         case (etype, name, values) =>
-          (domainRef: DomainRef) =>
-            Data.Definition.Enum(DefinitionRef(domainRef, name), values.to[ListSet], etype)
+          (domainRef: DomainRef) => Data.Definition.Enum(DefinitionRef(domainRef, name), values.to[ListSet], etype)
       }
 
     def entityDefinition[_: P]: P[DomainRef => Data.Definition.Record.Entity] =
       P(entity ~ name ~ fieldSet).map {
         case (name, fields) =>
-          (domainRef: DomainRef) =>
-            Data.Definition.Record.Entity(DefinitionRef(domainRef, name), fields(domainRef))
+          (domainRef: DomainRef) => Data.Definition.Record.Entity(DefinitionRef(domainRef, name), fields(domainRef))
       }
     def valueDefinition[_: P]: P[DomainRef => Data.Definition.Record.Value] =
       P(value ~ name ~ fieldSet).map {
         case (name, fields) =>
-          (domainRef: DomainRef) =>
-            Data.Definition.Record.Value(DefinitionRef(domainRef, name), fields(domainRef))
+          (domainRef: DomainRef) => Data.Definition.Record.Value(DefinitionRef(domainRef, name), fields(domainRef))
       }
     def eventDefinition[_: P]: P[DomainRef => Data.Definition.Record.Event] =
       P(event ~ name ~ fieldSet).map {
         case (name, fields) =>
-          (domainRef: DomainRef) =>
-            Data.Definition.Record.Event(DefinitionRef(domainRef, name), fields(domainRef))
+          (domainRef: DomainRef) => Data.Definition.Record.Event(DefinitionRef(domainRef, name), fields(domainRef))
       }
     def recordDefinition[_: P]: P[DomainRef => Data.Definition.Record] =
       P(entityDefinition | valueDefinition | eventDefinition)
@@ -169,15 +160,13 @@ object Parser {
     def publisherDefinition[_: P]: P[DomainRef => Data.Definition.Publisher] =
       P(publisher ~ name ~/ refSet).map {
         case (name, events) =>
-          (domainRef: DomainRef) =>
-            Data.Definition.Publisher(DefinitionRef(domainRef, name), events(domainRef))
+          (domainRef: DomainRef) => Data.Definition.Publisher(DefinitionRef(domainRef, name), events(domainRef))
       }
 
     def subscriberDefinition[_: P]: P[DomainRef => Data.Definition.Subscriber] =
       P(subscriber ~ name ~/ refSet).map {
         case (name, events) =>
-          (domainRef: DomainRef) =>
-            Data.Definition.Subscriber(DefinitionRef(domainRef, name), events(domainRef))
+          (domainRef: DomainRef) => Data.Definition.Subscriber(DefinitionRef(domainRef, name), events(domainRef))
       }
 
     def definition[_: P]: P[DomainRef => Data.Definition] =
@@ -196,20 +185,17 @@ object Parser {
     def renameDefinitionAction[_: P]: P[DomainRef => Action.RenameDefinition] =
       P(rename ~ !(enum | record) ~ name ~ `->` ~/ name).map {
         case (oldName, newName) =>
-          (domainRef: DomainRef) =>
-            Action.RenameDefinition(DefinitionRef(domainRef, oldName), newName)
+          (domainRef: DomainRef) => Action.RenameDefinition(DefinitionRef(domainRef, oldName), newName)
       }
     def addEnumValuesAction[_: P]: P[DomainRef => Action.AddEnumValues] =
       P(add ~ enum ~/ name ~ values ~/ `(` ~ literal.rep(sep = `,`) ~ `)`).map {
         case (name, newValues) =>
-          (domainRef: DomainRef) =>
-            Action.AddEnumValues(DefinitionRef(domainRef, name), newValues.to[ListSet])
+          (domainRef: DomainRef) => Action.AddEnumValues(DefinitionRef(domainRef, name), newValues.to[ListSet])
       }
     def removeEnumValuesAction[_: P]: P[DomainRef => Action.RemoveEnumValues] =
       P(remove ~ enum ~/ name ~ values ~/ `(` ~ literal.rep(sep = `,`) ~ `)`).map {
         case (name, removedValues) =>
-          (domainRef: DomainRef) =>
-            Action.RemoveEnumValues(DefinitionRef(domainRef, name), removedValues.to[ListSet])
+          (domainRef: DomainRef) => Action.RemoveEnumValues(DefinitionRef(domainRef, name), removedValues.to[ListSet])
       }
     def renameEnumValuesAction[_: P]: P[DomainRef => Action.RenameEnumValues] =
       P(rename ~ enum ~/ name ~ values ~/ `(` ~ (literal ~ `->` ~ literal).rep(sep = `,`) ~ `)`).map {
@@ -220,14 +206,12 @@ object Parser {
     def addRecordFieldsAction[_: P]: P[DomainRef => Action.AddRecordFields] =
       P(add ~ record ~/ name ~ fields ~/ fieldSet).map {
         case (name, newFields) =>
-          (domainRef: DomainRef) =>
-            Action.AddRecordFields(DefinitionRef(domainRef, name), newFields(domainRef))
+          (domainRef: DomainRef) => Action.AddRecordFields(DefinitionRef(domainRef, name), newFields(domainRef))
       }
     def removeRecordFieldsAction[_: P]: P[DomainRef => Action.RemoveRecordFields] =
       P(remove ~ record ~/ name ~ fields ~/ `{` ~ name.rep(sep = `,`) ~ `}`).map {
         case (name, removedFields) =>
-          (domainRef: DomainRef) =>
-            Action.RemoveRecordFields(DefinitionRef(domainRef, name), removedFields.to[ListSet])
+          (domainRef: DomainRef) => Action.RemoveRecordFields(DefinitionRef(domainRef, name), removedFields.to[ListSet])
       }
     def renameRecordFieldsAction[_: P]: P[DomainRef => Action.RenameRecordFields] =
       P(rename ~ record ~/ name ~ fields ~/ `{` ~ (name ~ `->` ~ name).rep(sep = `,`) ~ `}`).map {
@@ -258,9 +242,7 @@ object Parser {
       }
 
     def migration[_: P]: P[Migration] =
-      P(actionsInDomain.rep ~ End).map { actionsLists =>
-        Migration(actionsLists.toList.flatten)
-      }
+      P(actionsInDomain.rep ~ End).map(actionsLists => Migration(actionsLists.toList.flatten))
   }
 
   def apply[F[_]](implicit parser: Parser[F]): Parser[F] = parser

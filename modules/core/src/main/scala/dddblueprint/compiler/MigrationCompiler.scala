@@ -80,7 +80,9 @@ object MigrationCompiler {
     implicit migrationCompiler: MigrationCompiler[StateIO, IO]
   ): MigrationCompiler[StateIO, IO] = migrationCompiler
 
-  private final case class Intermediate(actions:      List[input.Action],
-                                        lastValid:    output.Snapshot,
-                                        currentState: ValidatedNel[SchemaError, Unit] = ().validNel[SchemaError])
+  private final case class Intermediate(
+    actions:      List[input.Action],
+    lastValid:    output.Snapshot,
+    currentState: ValidatedNel[SchemaError, Unit] = ().validNel[SchemaError]
+  )
 }

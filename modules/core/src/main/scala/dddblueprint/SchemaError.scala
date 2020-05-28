@@ -24,13 +24,14 @@ object SchemaError {
 
   final case class DomainMissing(domain: String) extends SchemaError
 
-  final case class DefinitionExists(domain:         String, name: String) extends SchemaError
-  final case class DefinitionMissing(domain:        String, name: String) extends SchemaError
-  final case class DefinitionTypeMismatch(domain:   String,
-                                          name:     String,
-                                          expected: String,
-                                          actual:   output.Data.Definition)
-      extends SchemaError
+  final case class DefinitionExists(domain:  String, name: String) extends SchemaError
+  final case class DefinitionMissing(domain: String, name: String) extends SchemaError
+  final case class DefinitionTypeMismatch(
+    domain:   String,
+    name:     String,
+    expected: String,
+    actual:   output.Data.Definition
+  ) extends SchemaError
 
   final case class EnumValuesExist(domain:   String, name: String, values:  ListSet[String]) extends SchemaError
   final case class EnumValuesMissing(domain: String, name: String, values:  ListSet[String]) extends SchemaError
@@ -58,20 +59,24 @@ object SchemaError {
     NonEmptyList.one(DefinitionExists(domain, name): SchemaError).raise[F, A]
   def definitionMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String): F[A] =
     NonEmptyList.one(DefinitionMissing(domain, name): SchemaError).raise[F, A]
-  def definitionTypeMismatch[F[_]: SchemaErrorRaise, A](domain: String,
-                                                        name:     String,
-                                                        expected: String,
-                                                        actual:   output.Data.Definition): F[A] =
+  def definitionTypeMismatch[F[_]: SchemaErrorRaise, A](
+    domain:   String,
+    name:     String,
+    expected: String,
+    actual:   output.Data.Definition
+  ): F[A] =
     NonEmptyList.one(DefinitionTypeMismatch(domain, name, expected, actual): SchemaError).raise[F, A]
 
   def enumValuesExist[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
     NonEmptyList.one(EnumValuesExist(domain, name, values): SchemaError).raise[F, A]
   def enumValuesMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
     NonEmptyList.one(EnumValuesMissing(domain, name, values): SchemaError).raise[F, A]
-  def enumTypeMismatch[F[_]: SchemaErrorRaise, A](domain: String,
-                                                  name:    String,
-                                                  oldType: String,
-                                                  newType: String): F[A] =
+  def enumTypeMismatch[F[_]: SchemaErrorRaise, A](
+    domain:  String,
+    name:    String,
+    oldType: String,
+    newType: String
+  ): F[A] =
     NonEmptyList.one(EnumTypeMismatch(domain, name, oldType, newType): SchemaError).raise[F, A]
 
   def recordFieldsExist[F[_]: SchemaErrorRaise, A](domain: String, name: String, values: ListSet[String]): F[A] =
@@ -84,8 +89,10 @@ object SchemaError {
   def argumentDefinitionMissing[F[_]: SchemaErrorRaise, A](domain: String, name: String, argument: String): F[A] =
     NonEmptyList.one(ArgumentDefinitionMissing(domain, name, argument): SchemaError).raise[F, A]
 
-  def eventPublishedOutsideDomain[F[_]: SchemaErrorRaise, A](domain: String,
-                                                             name:  String,
-                                                             where: output.Data.Definition.Publisher): F[A] =
+  def eventPublishedOutsideDomain[F[_]: SchemaErrorRaise, A](
+    domain: String,
+    name:   String,
+    where:  output.Data.Definition.Publisher
+  ): F[A] =
     NonEmptyList.one(EventPublishedOutsideDomain(domain, name, where): SchemaError).raise[F, A]
 }

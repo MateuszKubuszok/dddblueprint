@@ -6,17 +6,14 @@ object Dependencies {
 
   // scala version
   val scalaOrganization = "org.scala-lang"
-  val scalaVersion      = "2.12.8"
-
-  // build tools version
-  val scalaFmtVersion = "1.5.1"
+  val scalaVersion      = "2.12.10"
 
   // libraries versions
-  val catsVersion       = "1.6.0"
-  val catsEffectVersion = "1.2.0"
-  val monixVersion      = "3.0.0-RC2"
-  val monocleVersion    = "1.6.0-M1"
-  val specs2Version     = "4.6.0"
+  val catsVersion       = "2.1.0"
+  val catsEffectVersion = "2.1.3"
+  val monixVersion      = "3.2.1"
+  val monocleVersion    = "2.0.4"
+  val specs2Version     = "4.9.4"
 
   // resolvers
   val resolvers = Seq(
@@ -28,11 +25,10 @@ object Dependencies {
   val cats               = "org.typelevel"                %% "cats-core"                 % catsVersion
   val catsEffect         = "org.typelevel"                %% "cats-effect"               % catsEffectVersion
   val catsLaws           = "org.typelevel"                %% "cats-laws"                 % catsVersion
-  val catsMTL            = "org.typelevel"                %% "cats-mtl-core"             % "0.4.0"
-  val catnip             = "io.scalaland"                 %% "catnip"                    % "0.5.1"
-  val chimney            = "io.scalaland"                 %% "chimney"                   % "0.3.0"
-  val pulp               = "io.scalaland"                 %% "pulp"                      % "0.0.8"
-  val matrioshka         = "com.slamdata"                 %% "matryoshka-core"           % "0.18.3"
+  val catsMTL            = "org.typelevel"                %% "cats-mtl-core"             % "0.7.0"
+  val catnip             = "io.scalaland"                 %% "catnip"                    % "1.0.0"
+  val chimney            = "io.scalaland"                 %% "chimney"                   % "0.5.2"
+  val pulp               = "io.scalaland"                 %% "pulp"                      % "0.0.9"
   val monocle            = "com.github.julien-truffaut"   %% "monocle-core"              % monocleVersion
   val monocleMacro       = "com.github.julien-truffaut"   %% "monocle-macro"             % monocleVersion
   val shapeless          = "com.chuusai"                  %% "shapeless"                 % "2.3.3"
@@ -40,21 +36,18 @@ object Dependencies {
   val monixExecution     = "io.monix"                     %% "monix-execution"           % monixVersion
   val monixEval          = "io.monix"                     %% "monix-eval"                % monixVersion
   // config
-  val scopt              = "com.github.scopt"             %% "scopt"                     % "3.7.0"
+  val scopt              = "com.github.scopt"             %% "scopt"                     % "3.7.1"
   val scalaConfig        = "com.typesafe"                 %  "config"                    % "1.3.3"
-  val pureConfig         = "com.github.pureconfig"        %% "pureconfig"                % "0.9.2"  excludeAll (
-          ExclusionRule(   "org.scala-lang")
-  )
+  val pureConfig         = "com.github.pureconfig"        %% "pureconfig"                % "0.12.3"
   // generating
-  val scalameta          = "org.scalameta"                %% "scalameta"                 % "4.1.0"
+  val scalameta          = "org.scalameta"                %% "scalameta"                 % "4.3.12"
   // parsing
-  val fastparse          = "com.lihaoyi"                  %% "fastparse"                 % "2.1.0"
+  val fastparse          = "com.lihaoyi"                  %% "fastparse"                 % "2.3.0"
   // logging
-  val scalaLogging       = "com.typesafe.scala-logging"   %% "scala-logging"             % "3.9.0"
+  val scalaLogging       = "com.typesafe.scala-logging"   %% "scala-logging"             % "3.9.2"
   val logback            = "ch.qos.logback"               %  "logback-classic"           % "1.2.3"
   // testing
   val spec2Core          = "org.specs2"                   %% "specs2-core"               % specs2Version
-  val spec2Mock          = "org.specs2"                   %% "specs2-mock"               % specs2Version
   val spec2Scalacheck    = "org.specs2"                   %% "specs2-scalacheck"         % specs2Version
 }
 
@@ -62,8 +55,6 @@ trait Dependencies {
 
   val scalaOrganizationUsed = scalaOrganization
   val scalaVersionUsed = scalaVersion
-
-  val scalaFmtVersionUsed = scalaFmtVersion
 
   // resolvers
   val commonResolvers = resolvers
@@ -75,7 +66,7 @@ trait Dependencies {
     scopt, scalaConfig, pureConfig
   )
 
-  val testDeps = Seq(catsLaws, spec2Core, spec2Mock, spec2Scalacheck)
+  val testDeps = Seq(catsLaws, spec2Core, spec2Scalacheck)
 
   implicit final class ProjectRoot(project: Project) {
 

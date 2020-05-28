@@ -34,12 +34,7 @@ object DependencyResolver {
         (for {
           (arg, argIndex) <- arguments.zipWithIndex
           (name, ref) <- argToNamedRef(getName)(arg)
-        } yield
-          s"(${arguments.indices
-            .map { index =>
-              if (index === argIndex) name else "_"
-            }
-            .mkString(",")})" -> ref).toSeq: _*
+        } yield s"(${arguments.indices.map(index => if (index === argIndex) name else "_").mkString(",")})" -> ref).toSeq: _*
       )
   }
 

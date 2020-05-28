@@ -61,7 +61,7 @@ class CorrectParsingSpec extends ParserSpec {
                 ),
                 Action.CreateDefinition(Data.Definition.Subscriber(onUserCreatedRef, ListSet(userCreatedRef))),
                 Action.CreateDefinition(Data.Definition.Record.Event(mailSentRef, ListMap("email" -> Data.String))),
-                Action.CreateDefinition(Data.Definition.Publisher(onMailSentRef, ListSet(mailSentRef))),
+                Action.CreateDefinition(Data.Definition.Publisher(onMailSentRef, ListSet(mailSentRef)))
               )
             ),
             // v2__update-domains.ddd

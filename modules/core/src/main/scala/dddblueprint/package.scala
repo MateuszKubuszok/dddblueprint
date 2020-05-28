@@ -17,10 +17,8 @@ package object dddblueprint {
   // missing type classes for our own convenience
 
   implicit def atListMap[K, V]: At[ListMap[K, V], K, Option[V]] =
-    At[ListMap[K, V], K, Option[V]] { k: K => lm: ListMap[K, V] =>
-      lm.get(k)
-    } { k: K => vOpt: Option[V] => lm: ListMap[K, V] =>
-      vOpt.map(v => lm + (k -> v)).getOrElse(lm - k)
+    At[ListMap[K, V], K, Option[V]] { k: K => lm: ListMap[K, V] => lm.get(k) } {
+      k: K => vOpt: Option[V] => lm: ListMap[K, V] => vOpt.map(v => lm + (k -> v)).getOrElse(lm - k)
     }
 
   private[dddblueprint] implicit def eqListMap[K, V](implicit eqMap: Eq[Map[K, V]]): Eq[ListMap[K, V]] =
@@ -32,9 +30,7 @@ package object dddblueprint {
     def traverse[G[_], V, B](fa: ListMap[K, V])(f: V => G[B])(implicit ev: Applicative[G]): G[ListMap[K, B]] =
       fa.foldLeft(ListMap.empty[K, B].pure[G]) {
         case (out, (k, v)) =>
-          out.map2(f(v)) { (listB, b) =>
-            listB + (k -> b)
-          }
+          out.map2(f(v))((listB, b) => listB + (k -> b))
       }
 
     def foldLeft[V, W](fa: ListMap[K, V], b: W)(f: (W, V) => W): W =
@@ -50,11 +46,7 @@ package object dddblueprint {
   }
   private[dddblueprint] implicit val foldableListSet: Traverse[ListSet] = new Traverse[ListSet] {
     def traverse[G[_], A, B](fa: ListSet[A])(f: A => G[B])(implicit ev: Applicative[G]): G[ListSet[B]] =
-      fa.foldLeft(ListSet.empty[B].pure[G]) { (out, a) =>
-        out.map2(f(a)) { (listB, b) =>
-          listB + b
-        }
-      }
+      fa.foldLeft(ListSet.empty[B].pure[G])((out, a) => out.map2(f(a))((listB, b) => listB + b))
 
     def foldLeft[A, B](fa: ListSet[A], b: B)(f: (B, A) => B): B =
       fa.foldLeft(b)(f)
@@ -141,5 +133,5 @@ package object dddblueprint {
       new (StateT[IO, State, ?] ~> IO) {
 
         def apply[A](stateIO: StateT[IO, State, A]): IO[A] = stateIO.runA(zero.zero)
-    }
+      }
 }

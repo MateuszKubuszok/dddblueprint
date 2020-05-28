@@ -46,9 +46,7 @@ import monocle.macros.syntax.lens._
       .map(translateActionToApplicableDiff)
       .zipWithIndex
       .groupBy(_._1._1)
-      .mapValues { values =>
-        values.map(_._2).min -> values.sortBy(_._2).flatMap(_._1._2)
-      }
+      .mapValues(values => values.map(_._2).min -> values.sortBy(_._2).flatMap(_._1._2))
       .collect {
         case (ref, (i, head :: tail)) =>
           i -> (ref -> NonEmptyList(head, tail))
