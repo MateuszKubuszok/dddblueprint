@@ -33,13 +33,12 @@ import monocle.macros.syntax.lens._
       (definition -> values.map(output.ManualDiff.EnumValueRemoved(_): output.ManualDiff)).pure[StateIO]
     case input.Action.RenameEnumValues(definition, _) => (definition -> ListSet.empty[output.ManualDiff]).pure[StateIO]
     case input.Action.AddRecordFields(definition, fields) =>
-      fields
-        .to[List]
+      fields.toList
         .traverse {
           case (name, arg) =>
             arg.compile[StateIO].map(output.ManualDiff.RecordFieldAdded(name, _): output.ManualDiff)
         }
-        .map(list => definition -> list.to[ListSet])
+        .map(list => definition -> list.toListSet)
     case input.Action.RemoveRecordFields(definition, _) =>
       (definition -> ListSet.empty[output.ManualDiff]).pure[StateIO]
     case input.Action.RenameRecordFields(definition, _) =>

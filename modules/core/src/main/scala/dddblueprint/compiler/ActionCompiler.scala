@@ -12,7 +12,7 @@ import io.scalaland.pulp.Cached
   // scalastyle:on no.whitespace.after.left.bracket
 
   private def mapFields(fields: input.Data.Definition.FieldSet): StateIO[output.Data.Definition.FieldSet] =
-    Traverse[ListMap[String, ?]].sequence[StateIO, output.Argument](fields.map {
+    Traverse[ListMap[String, *]].sequence[StateIO, output.Argument](fields.map {
       case (k, v) => k -> v.compile[StateIO]
     })
 
@@ -82,7 +82,7 @@ import io.scalaland.pulp.Cached
       for {
         internalRef <- ref.requireNotExisted[StateIO]
         internalInput <- Traverse[ListSet]
-          .sequence[StateIO, (String, output.Argument)](inputs.to[ListSet].map {
+          .sequence[StateIO, (String, output.Argument)](inputs.toListSet.map {
             case (k, v) => k.pure[StateIO].map2(v.compile[StateIO])(_ -> _)
           })
           .map(set => ListMap(set.toSeq: _*))
@@ -196,7 +196,7 @@ import io.scalaland.pulp.Cached
               }))
             )
           } else {
-            SchemaError.enumValuesMissing(ref.domain.name, ref.name, renamedValues.keys.to[ListSet] -- oldValues)
+            SchemaError.enumValuesMissing(ref.domain.name, ref.name, renamedValues.keys.toListSet -- oldValues)
           }
         case Some(other) =>
           SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "enum", other)
@@ -213,7 +213,7 @@ import io.scalaland.pulp.Cached
       _ <- currentDefinitionOpt match {
         case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
           mapFields(newFields).flatMap { internalNewFields =>
-            val common = oldFields.keys.to[ListSet].intersect(newFields.keys.to[ListSet])
+            val common = oldFields.keys.toListSet.intersect(newFields.keys.toListSet)
             if (common.isEmpty) {
               SnapshotState[StateIO].modify(
                 _.withDefinition(domainRef, internalRef, record.withFields(oldFields ++ internalNewFields))
@@ -236,7 +236,7 @@ import io.scalaland.pulp.Cached
       currentDefinitionOpt <- internalRef.getDefinition[StateIO]
       _ <- currentDefinitionOpt match {
         case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
-          if (removedFields.subsetOf(oldFields.keys.to[ListSet])) {
+          if (removedFields.subsetOf(oldFields.keys.toListSet)) {
             SnapshotState[StateIO].modify(
               _.withDefinition(domainRef, internalRef, record.withFields(oldFields.filter {
                 case (k, _) => !removedFields.contains(k)
@@ -259,14 +259,14 @@ import io.scalaland.pulp.Cached
       currentDefinitionOpt <- internalRef.getDefinition[StateIO]
       _ <- currentDefinitionOpt match {
         case Some(record @ output.Data.Definition.Record.Aux(_, oldFields, _)) =>
-          if (renamedFields.keySet.subsetOf(oldFields.keys.to[ListSet])) {
+          if (renamedFields.keySet.subsetOf(oldFields.keys.toListSet)) {
             SnapshotState[StateIO].modify(
               _.withDefinition(domainRef, internalRef, record.withFields(oldFields.map {
                 case (k, v) => renamedFields.getOrElse(k, k) -> v
               }))
             )
           } else {
-            SchemaError.recordFieldsMissing(ref.domain.name, ref.name, renamedFields.keys.to[ListSet] -- oldFields.keys)
+            SchemaError.recordFieldsMissing(ref.domain.name, ref.name, renamedFields.keys.toListSet -- oldFields.keys)
           }
         case Some(other) =>
           SchemaError.definitionTypeMismatch(ref.domain.name, ref.name, "record", other)

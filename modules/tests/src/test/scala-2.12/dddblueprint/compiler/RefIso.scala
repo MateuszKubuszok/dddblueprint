@@ -1,6 +1,6 @@
-package dddblueprint
-package compiler
+package dddblueprint.compiler
 
+import dddblueprint.{ input, output }
 import monocle.Iso
 
 trait RefIso {

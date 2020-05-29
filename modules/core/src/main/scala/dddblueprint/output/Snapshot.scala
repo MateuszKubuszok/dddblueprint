@@ -42,7 +42,7 @@ import monocle.macros.GenLens
       domainRef <- findDomain(ref)
       domainName <- namespaces.domains.get(domainRef)
       name <- namespaces.definitions.get(ref)
-    } yield s"$domainName.$name"
+    } yield show"$domainName.$name"
 
   def findDomainNameAndName(ref: DefinitionRef): Option[(String, String)] =
     for {

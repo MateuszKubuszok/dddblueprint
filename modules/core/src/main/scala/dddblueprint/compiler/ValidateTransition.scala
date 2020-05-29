@@ -71,8 +71,8 @@ import monocle.macros.syntax.lens._
   // scalastyle:off cyclomatic.complexity
   def typesMatches(oldVersion: output.Snapshot, newVersion: output.Snapshot): StateIO[Unit] = Sync[StateIO].defer {
     (for {
-      (newRef, newDef) <- newVersion.definitions.to[ListSet]
-      (oldRef, oldDef) <- oldVersion.definitions.to[ListSet]
+      (newRef, newDef) <- newVersion.definitions.toListSet
+      (oldRef, oldDef) <- oldVersion.definitions.toListSet
       if oldRef === newRef
       (domain, name) = refToDomainAndName(newVersion, newRef)
       typeMismatch <- (oldDef, newDef) match {
@@ -244,30 +244,30 @@ import monocle.macros.syntax.lens._
   ): StateIO[Unit] =
     Sync[StateIO].defer {
       val enumsWithRemovedValues = for {
-        (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+        (newRef, newDef) <- newVersion.definitions.toListSet.collect {
           case (ref, enum: output.Data.Definition.Enum) => ref -> enum
         }
-        (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+        (oldRef, oldDef) <- oldVersion.definitions.toListSet.collect {
           case (ref, enum: output.Data.Definition.Enum) => ref -> enum
         }
         if oldRef === newRef && !oldDef.values.subsetOf(newDef.values)
       } yield newRef
 
       val enumsWithOnlyAddedValues = (for {
-        (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+        (newRef, newDef) <- newVersion.definitions.toListSet.collect {
           case (ref, enum: output.Data.Definition.Enum) => ref -> enum
         }
-        (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+        (oldRef, oldDef) <- oldVersion.definitions.toListSet.collect {
           case (ref, enum: output.Data.Definition.Enum) => ref -> enum
         }
         if oldRef === newRef && !newDef.values.subsetOf(oldDef.values)
       } yield newRef) -- enumsWithRemovedValues
 
       val recordsWithAddedOrChangedFields = for {
-        (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+        (newRef, newDef) <- newVersion.definitions.toListSet.collect {
           case (ref, record: output.Data.Definition.Record) => ref -> record
         }
-        (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+        (oldRef, oldDef) <- oldVersion.definitions.toListSet.collect {
           case (ref, record: output.Data.Definition.Record) => ref -> record
         }
         if oldRef === newRef
@@ -281,10 +281,10 @@ import monocle.macros.syntax.lens._
       } yield newRef
 
       val recordsWithOnlyRemovedFields = (for {
-        (newRef, newDef) <- newVersion.definitions.to[ListSet].collect {
+        (newRef, newDef) <- newVersion.definitions.toListSet.collect {
           case (ref, record: output.Data.Definition.Record) => ref -> record
         }
-        (oldRef, oldDef) <- oldVersion.definitions.to[ListSet].collect {
+        (oldRef, oldDef) <- oldVersion.definitions.toListSet.collect {
           case (ref, record: output.Data.Definition.Record) => ref -> record
         }
         if oldRef === newRef
@@ -362,23 +362,21 @@ import monocle.macros.syntax.lens._
 
       Traverse[ListSet]
         .sequence(
-          migrations
-            .map {
-              case (ref, (automaticOpt, manualOpt)) =>
-                type Deps = ListMap[output.DefinitionRef, output.Dependencies]
-                val automaticUpdate: Deps => Deps = automaticOpt match {
-                  case Some(automatic) => _.updated(ref, automatic)
-                  case None            => identity
-                }
-                val manualUpdate: Deps => Deps = manualOpt match {
-                  case Some(manual) => _.updated(ref, manual)
-                  case None         => identity
-                }
-                SnapshotState[StateIO].modify(
-                  _.lens(_.automaticMigrations).modify(automaticUpdate).lens(_.manualMigrations).modify(manualUpdate)
-                )
-            }
-            .to[ListSet]
+          migrations.map {
+            case (ref, (automaticOpt, manualOpt)) =>
+              type Deps = ListMap[output.DefinitionRef, output.Dependencies]
+              val automaticUpdate: Deps => Deps = automaticOpt match {
+                case Some(automatic) => _.updated(ref, automatic)
+                case None            => identity
+              }
+              val manualUpdate: Deps => Deps = manualOpt match {
+                case Some(manual) => _.updated(ref, manual)
+                case None         => identity
+              }
+              SnapshotState[StateIO].modify(
+                _.lens(_.automaticMigrations).modify(automaticUpdate).lens(_.manualMigrations).modify(manualUpdate)
+              )
+          }.toListSet
         )
         .map(_ => ())
     }

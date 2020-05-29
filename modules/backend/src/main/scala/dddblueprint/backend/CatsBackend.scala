@@ -26,7 +26,7 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
       .map {
         case (domainName, name) =>
           val version = snapshot.namespaces.versions(ref)
-          s"$pkg.${domainName.asPackageName}.${name.asClassName}.$version".parse[Type].get.pure[IO]
+          show"$pkg.${domainName.asPackageName}.${name.asClassName}.$version".parse[Type].get.pure[IO]
       }
       .getOrElse(SchemaError.invalidRef(ref.id))
 
@@ -43,12 +43,14 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
   def getCollectionType(snapshot: Snapshot): Data.Collection => IO[Type] = {
     val argument: Argument => IO[Type] = getArgumentType(snapshot)
     ({
-      case Data.Collection.Option(of) => argument(of).map(tpe => s"scala.Option[$tpe]".parse[Type].get)
-      case Data.Collection.Array(of)  => argument(of).map(tpe => s"scala.List[$tpe]".parse[Type].get)
+      case Data.Collection.Option(of) => argument(of).map(tpe => show"scala.Option[${tpe.toString}]".parse[Type].get)
+      case Data.Collection.Array(of)  => argument(of).map(tpe => show"scala.List[${tpe.toString}]".parse[Type].get)
       case Data.Collection.Set(of) =>
-        argument(of).map(tpe => s"scala.Predef.Set[$tpe]".parse[Type].get)
+        argument(of).map(tpe => show"scala.Predef.Set[${tpe.toString}]".parse[Type].get)
       case Data.Collection.Map(k, v) =>
-        (argument(k) -> argument(v)).mapN((ktpe, vtpe) => s"scala.Predef.Map[$ktpe, $vtpe]".parse[Type].get)
+        (argument(k) -> argument(v)).mapN((ktpe, vtpe) =>
+          show"scala.Predef.Map[${ktpe.toString}, ${vtpe.toString}]".parse[Type].get
+        )
     }: Data.Collection => IO[Type])
   }
 
@@ -56,7 +58,7 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
     val argument: Argument => IO[Type] = getArgumentType(snapshot)
     ({
       case Data.Tuple(args) =>
-        Traverse[List].sequence(args.map(argument)).map(types => s"(${types.mkString(",")})".parse[Type].get)
+        Traverse[List].sequence(args.map(argument)).map(types => show"(${types.mkString(",")})".parse[Type].get)
     }: Data.Tuple => IO[Type])
   }
 

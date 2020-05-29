@@ -1,9 +1,9 @@
 language:       scala
 scala:
               - 2.12.10
+              - 2.13.2
 jdk:
               - openjdk8
-              - oraclejdk8
 dist:           trusty
 cache:
   directories:

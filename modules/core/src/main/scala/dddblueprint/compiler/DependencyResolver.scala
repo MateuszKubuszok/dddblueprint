@@ -14,7 +14,7 @@ object DependencyResolver {
     case output.Data.Collection.Array(of)       => argToRef(of)
     case output.Data.Collection.Set(of)         => argToRef(of)
     case output.Data.Collection.Map(key, value) => argToRef(key) ++ argToRef(value)
-    case output.Data.Tuple(arguments)           => arguments.to[ListSet].flatMap(argToRef)
+    case output.Data.Tuple(arguments)           => arguments.toListSet.flatMap(argToRef)
   }
 
   val argToNamedRef: (
@@ -22,19 +22,20 @@ object DependencyResolver {
   ) => output.Argument => ListMap[String, output.DefinitionRef] = getName => {
     case ref: output.DefinitionRef  => ListMap(getName(ref).getOrElse("undefined") -> ref)
     case _:   output.Data.Primitive => ListMap.empty
-    case output.Data.Collection.Option(of) => argToNamedRef(getName)(of).map { case (name, ref) => s"$name?" -> ref }
-    case output.Data.Collection.Array(of)  => argToNamedRef(getName)(of).map { case (name, ref) => s"[$name]" -> ref }
-    case output.Data.Collection.Set(of)    => argToNamedRef(getName)(of).map { case (name, ref) => s"{$name}" -> ref }
+    case output.Data.Collection.Option(of) => argToNamedRef(getName)(of).map { case (name, ref) => show"$name?" -> ref }
+    case output.Data.Collection.Array(of)  => argToNamedRef(getName)(of).map { case (name, ref) => show"[$name]" -> ref }
+    case output.Data.Collection.Set(of)    => argToNamedRef(getName)(of).map { case (name, ref) => show"{$name}" -> ref }
     case output.Data.Collection.Map(key, value) =>
-      argToNamedRef(getName)(key).map { case (name, ref) => s"{$name:_}" -> ref } ++ argToNamedRef(getName)(value).map {
-        case (name, ref)                                 => s"{_:$name}" -> ref
-      }
+      argToNamedRef(getName)(key).map { case (name, ref) => show"{$name:_}" -> ref } ++ argToNamedRef(getName)(value)
+        .map {
+          case (name, ref) => show"{_:$name}" -> ref
+        }
     case output.Data.Tuple(arguments) =>
       ListMap(
         (for {
           (arg, argIndex) <- arguments.zipWithIndex
           (name, ref) <- argToNamedRef(getName)(arg)
-        } yield s"(${arguments.indices.map(i => if (i === argIndex) name else "_").mkString(",")})" -> ref).toSeq: _*
+        } yield show"(${arguments.indices.map(i => if (i === argIndex) name else "_").mkString(",")})" -> ref).toSeq: _*
       )
   }
 
@@ -43,9 +44,9 @@ object DependencyResolver {
     case collection: output.Data.Collection => argToRef(collection)
     case record:     output.Data.Definition.Record =>
       val output.Data.Definition.Record.Aux(_, fields, _) = record
-      fields.values.to[ListSet].flatMap(argToRef(_).toList)
+      fields.values.toListSet.flatMap(argToRef(_).toList)
     case output.Data.Definition.Service(_, inputs, outputs) =>
-      inputs.values.to[ListSet].flatMap(argToRef(_).toList) ++ outputs
+      inputs.values.toListSet.flatMap(argToRef(_).toList) ++ outputs
     case output.Data.Definition.Publisher(_, events)  => events
     case output.Data.Definition.Subscriber(_, events) => events
   }
@@ -65,13 +66,13 @@ object DependencyResolver {
       inputs.map { case (field, ref) => field -> argToRef(ref) }.flatMap {
         case (field, refs) => refs.map(field -> _)
       } ++
-        outputs.zipWithIndex.map { case (r, i) => s"output $i" -> r }
+        outputs.zipWithIndex.map { case (r, i) => show"output $i" -> r }
     case output.Data.Definition.Publisher(_, events) =>
       // TODO: event # -> entity name
-      ListMap(events.zipWithIndex.map { case (r, i) => s"event $i" -> r }.toSeq: _*)
+      ListMap(events.zipWithIndex.map { case (r, i) => show"event $i" -> r }.toSeq: _*)
     case output.Data.Definition.Subscriber(_, events) =>
       // TODO: event # -> entity name
-      ListMap(events.zipWithIndex.map { case (r, i) => s"event $i" -> r }.toSeq: _*)
+      ListMap(events.zipWithIndex.map { case (r, i) => show"event $i" -> r }.toSeq: _*)
   }
 
   def findTransitiveDependencies(
@@ -86,7 +87,7 @@ object DependencyResolver {
       resolved: ListMap[output.DefinitionRef, Dependencies],
       visited:  ListSet[output.DefinitionRef] = ListSet.empty
     ): ListMap[output.DefinitionRef, Dependencies] = {
-      val candidates: ListSet[output.DefinitionRef] = resolved.values.to[ListSet].flatMap(_.transitive)
+      val candidates: ListSet[output.DefinitionRef] = resolved.values.toListSet.flatMap(_.transitive)
 
       val newlyResolved: Map[output.DefinitionRef, ListSet[output.DefinitionRef]] = (candidates -- visited).map { ref =>
         ref -> refToDirectDependencies(ref)
