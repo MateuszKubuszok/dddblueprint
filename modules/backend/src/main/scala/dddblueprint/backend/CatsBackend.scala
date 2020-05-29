@@ -93,7 +93,7 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
     case t: Data.Tuple      => getTupleType(snapshot)(t)
   }
 
-  def getVersionedDefinitionBody(snapshot: Snapshot): Data.Definition => IO[Source] = {
+  def getVersionedDefinitionBody(snapshot: Snapshot): Data.Definition => IO[Tree] = {
     val toType: Argument => IO[Type] = getArgumentType(snapshot)
     def ver(ref:     DefinitionRef) = "v" + snapshot.namespaces.versions(ref).toString
     def args(fields: Data.Definition.FieldSet) =
@@ -111,20 +111,20 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
             object $v {
               ${values.map("case object " + _ + show" extends $v").mkString("\n")}
             }
-            """.parseIO[Source]
+            """.parseIO[Source].widen
       case Data.Definition.Record.Entity(ref, fields) =>
         // TODO: add ID
-        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Source])
+        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat]).widen
       case Data.Definition.Record.Value(ref, fields) =>
-        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Source])
+        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat]).widen
       case Data.Definition.Record.Event(ref, fields) =>
-        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Source])
+        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat].widen)
       case Data.Definition.Service(ref, input, output) =>
-        (args(input), out(output)).tupled.flatMap { case (a, o) => show"""def ${ver(ref)}($a): ($o)""".parseIO[Source] }
+        (args(input), out(output)).tupled.flatMap { case (a, o) => show"""def ${ver(ref)}($a): ($o)""".parseIO[Stat] }.widen
       case Data.Definition.Publisher(ref, events) =>
-        out(events).flatMap(o => show"""type ${ver(ref)} = Publisher[($o)]""".parseIO[Source])
+        out(events).flatMap(o => show"""type ${ver(ref)} = Publisher[($o)]""".parseIO[Stat]).widen
       case Data.Definition.Subscriber(ref, events) =>
-        out(events).flatMap(o => show"""type ${ver(ref)} = Subscriber[($o)]""".parseIO[Source])
-    }: Data.Definition => IO[Source])
+        out(events).flatMap(o => show"""type ${ver(ref)} = Subscriber[($o)]""".parseIO[Stat]).widen
+    }: Data.Definition => IO[Tree])
   }
 }
