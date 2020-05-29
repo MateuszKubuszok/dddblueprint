@@ -6,7 +6,7 @@ import java.nio.file.{ Path, Paths }
 import cats.effect.Sync
 import cats.implicits._
 import cats.Traverse
-import dddblueprint.backend.CatsBackend.PartialResult
+import dddblueprint.backend.CatsBackend.{ PartialResult, Target }
 import io.scalaland.pulp._
 
 import scala.meta._
@@ -44,14 +44,24 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
         }
       }
       .flatMap { partialResults =>
-        partialResults.groupBy(pr => pr.domain -> pr.name).toList.traverse {
-          case ((domainName, name), results) =>
+        partialResults.groupBy(_.target).toList.traverse {
+          case (Target(domainName, name), results) =>
             val path = Paths.get(show"""$pkg/${domainName.asPackageName}/${name.asClassName}""")
-            val code = show"""package $pkg.${domainName.asPackageName}
-                  object ${name.asClassName} {
-                    ${results.map(_.tree.toString).mkString("\n\n")}
-                  }
-                  """
+            @SuppressWarnings(Array("org.wartremover.warts.TraversableOps"))
+            val code = results.head match {
+              case _: PartialResult.Object =>
+                show"""package $pkg.${domainName.asPackageName}
+                       object ${name.asClassName} {
+                         ${results.map(_.tree.toString).mkString("\n\n")}
+                       }
+                       """
+              case _: PartialResult.Trait =>
+                show"""package $pkg.${domainName.asPackageName}
+                       trait ${name.asClassName} {
+                         ${results.map(_.tree.toString).mkString("\n\n")}
+                       }
+                       """
+            }
             code.parseIO[Source].map(path -> _.toString)
         }
       }
@@ -114,12 +124,15 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
         .map(_.mkString(", "))
     def out(output: Data.Definition.RefSet) =
       output.toList.traverse(out => toType(out).map(tpe => show"""${tpe.toString}""")).map(_.mkString(", "))
-    def enrich(ref: DefinitionRef)(tree: Tree) =
+    def toObject(ref: DefinitionRef)(tree: Tree): IO[PartialResult] =
       snapshot
         .findDomainNameAndName(ref)
-        .map {
-          case (domainName, name) => PartialResult(domainName, name, tree)
-        }
+        .map { case (domainName, name) => PartialResult.Object(Target(domainName, name), tree): PartialResult }
+        .fold(Sync[IO].raiseError[PartialResult](new Exception(show"Cannot find domain and name for $ref")))(_.pure[IO])
+    def toTrait(ref: DefinitionRef)(tree: Tree): IO[PartialResult] =
+      snapshot
+        .findDomainNameAndName(ref)
+        .map { case (domainName, name) => PartialResult.Trait(Target(domainName, name), tree): PartialResult }
         .fold(Sync[IO].raiseError[PartialResult](new Exception(show"Cannot find domain and name for $ref")))(_.pure[IO])
     // TODO: add also ver and type  to output type if needed!!!!
     ({
@@ -130,30 +143,39 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
             object $v {
               ${values.map("case object " + _ + show" extends $v").mkString("\n")}
             }
-            """.parseIO[Source].widen.flatMap(enrich(ref))
+            """.parseIO[Source].widen.flatMap(toObject(ref))
       case Data.Definition.Record.Entity(ref, fields) =>
         // TODO: add ID
-        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat]).widen.flatMap(enrich(ref))
+        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat]).widen.flatMap(toObject(ref))
       case Data.Definition.Record.Value(ref, fields) =>
-        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat]).widen.flatMap(enrich(ref))
+        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat]).widen.flatMap(toObject(ref))
       case Data.Definition.Record.Event(ref, fields) =>
-        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat].widen).flatMap(enrich(ref))
+        args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Stat].widen).flatMap(toObject(ref))
       case Data.Definition.Service(ref, input, output) =>
         (args(input), out(output)).tupled
-          .flatMap {
-            case (args, out) => show"""def ${ver(ref)}($args): ($out)""".parseIO[Stat]
-          }
+          .flatMap { case (args, out) => show"""def ${ver(ref)}($args): ($out)""".parseIO[Stat] }
           .widen
-          .flatMap(enrich(ref))
+          .flatMap(toTrait(ref))
       case Data.Definition.Publisher(ref, events) =>
-        out(events).flatMap(o => show"""type ${ver(ref)} = Publisher[($o)]""".parseIO[Stat]).widen.flatMap(enrich(ref))
+        out(events).flatMap(o => show"""type ${ver(ref)} = Publisher[($o)]""".parseIO[Stat]).widen.flatMap(toTrait(ref))
       case Data.Definition.Subscriber(ref, events) =>
-        out(events).flatMap(o => show"""type ${ver(ref)} = Subscriber[($o)]""".parseIO[Stat]).widen.flatMap(enrich(ref))
+        out(events)
+          .flatMap(o => show"""type ${ver(ref)} = Subscriber[($o)]""".parseIO[Stat])
+          .widen
+          .flatMap(toTrait(ref))
     }: Data.Definition => IO[PartialResult])
   }
 }
 
 object CatsBackend {
 
-  final case class PartialResult(domain: String, name: String, tree: Tree)
+  final case class Target(domain: String, name: String)
+  sealed trait PartialResult extends ADT {
+    val target: Target
+    val tree:   Tree
+  }
+  object PartialResult {
+    final case class Object(target: Target, tree: Tree) extends PartialResult
+    final case class Trait(target:  Target, tree: Tree) extends PartialResult
+  }
 }
