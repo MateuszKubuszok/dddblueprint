@@ -38,11 +38,7 @@ import monocle.macros.GenLens
     }
 
   def findName(ref: output.DefinitionRef): Option[String] =
-    for {
-      domainRef <- findDomain(ref)
-      domainName <- namespaces.domains.get(domainRef)
-      name <- namespaces.definitions.get(ref)
-    } yield show"$domainName.$name"
+    namespaces.definitions.get(ref).map(_.name)
 
   def findDomainNameAndName(ref: DefinitionRef): Option[(String, String)] =
     for {

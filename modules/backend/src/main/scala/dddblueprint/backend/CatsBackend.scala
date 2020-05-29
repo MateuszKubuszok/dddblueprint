@@ -6,9 +6,12 @@ import java.nio.file.{ Path, Paths }
 import cats.effect.Sync
 import cats.implicits._
 import cats.Traverse
+import io.scalaland.pulp._
 
 import scala.meta._
 import output._
+
+import scala.reflect._
 
 final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Backend[IO] {
 
@@ -18,7 +21,10 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
     def asClassName:   String = string.replaceAll("[- ]", "_")
 
     // TODO: use better error handling
-    def parseIO[U: scala.meta.parsers.Parse]: IO[U] = Sync[IO].delay(string.parse[U].get)
+    def parseIO[U: scala.meta.parsers.Parse: ClassTag]: IO[U] = Sync[IO].delay(string.parse[U].get).recoverWith {
+      case error: Exception =>
+        Sync[IO].raiseError((new Exception(show"Original code:\n$string\n${classTag[U].toString}", error)))
+    }
   }
 
   def apply(blueprint: Blueprint): IO[ListMap[Path, String]] =
@@ -33,8 +39,8 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
          */
         val versioned = getVersionedDefinitionBody(snapshot)
         snapshot.definitions.toList.traverse {
-          case (_, definition) =>
-            versioned(definition).map(Paths.get("test") -> _.toString)
+          case (ref, definition) =>
+            versioned(definition).map(Paths.get(ref.id.toString) -> _.toString)
         }
       }
       .map(l => ListMap(l.toSeq: _*))
@@ -44,7 +50,7 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
       .findDomainNameAndName(ref)
       .map {
         case (domainName, name) =>
-          show"$pkg.${domainName.asPackageName}.${name.asClassName}.${snapshot.namespaces.versions(ref)}".parseIO[Type]
+          show"$pkg.${domainName.asPackageName}.${name.asClassName}.v${snapshot.namespaces.versions(ref)}".parseIO[Type]
       }
       .getOrElse(SchemaError.invalidRef(ref.id))
 
@@ -89,7 +95,7 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
 
   def getVersionedDefinitionBody(snapshot: Snapshot): Data.Definition => IO[Source] = {
     val toType: Argument => IO[Type] = getArgumentType(snapshot)
-    def ver(ref:     DefinitionRef) = snapshot.namespaces.versions(ref)
+    def ver(ref:     DefinitionRef) = "v" + snapshot.namespaces.versions(ref).toString
     def args(fields: Data.Definition.FieldSet) =
       fields.toList
         .traverse { case (name, arg) => toType(arg).map(tpe => show"""$name: ${tpe.toString}""") }
@@ -98,6 +104,14 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
       output.toList.traverse(out => toType(out).map(tpe => show"""${tpe.toString}""")).map(_.mkString(", "))
     // TODO: add also ver and type  to output type if needed!!!!
     ({
+      case Data.Definition.Enum(ref, values, _) =>
+        val v = ver(ref)
+        show"""
+            sealed trait $v extends Product with Serializable
+            object $v {
+              ${values.map("case object " + _ + show" extends $v").mkString("\n")}
+            }
+            """.parseIO[Source]
       case Data.Definition.Record.Entity(ref, fields) =>
         // TODO: add ID
         args(fields).flatMap(a => show"""final case class ${ver(ref)}($a)""".parseIO[Source])
@@ -108,11 +122,9 @@ final class CatsBackend[IO[_]: Sync: SchemaErrorRaise](pkg: String) extends Back
       case Data.Definition.Service(ref, input, output) =>
         (args(input), out(output)).tupled.flatMap { case (a, o) => show"""def ${ver(ref)}($a): ($o)""".parseIO[Source] }
       case Data.Definition.Publisher(ref, events) =>
-        out(events).flatMap(o => show"""def ${ver(ref)}: Publisher[($o)]""".parseIO[Source])
+        out(events).flatMap(o => show"""type ${ver(ref)} = Publisher[($o)]""".parseIO[Source])
       case Data.Definition.Subscriber(ref, events) =>
-        out(events).flatMap(o => show"""def ${ver(ref)}: Subscriber[($o)]""".parseIO[Source])
+        out(events).flatMap(o => show"""type ${ver(ref)} = Subscriber[($o)]""".parseIO[Source])
     }: Data.Definition => IO[Source])
   }
 }
-
-object CatsBackend {}
