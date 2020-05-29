@@ -22,9 +22,12 @@ object DependencyResolver {
   ) => output.Argument => ListMap[String, output.DefinitionRef] = getName => {
     case ref: output.DefinitionRef  => ListMap(getName(ref).getOrElse("undefined") -> ref)
     case _:   output.Data.Primitive => ListMap.empty
-    case output.Data.Collection.Option(of) => argToNamedRef(getName)(of).map { case (name, ref) => show"$name?" -> ref }
-    case output.Data.Collection.Array(of)  => argToNamedRef(getName)(of).map { case (name, ref) => show"[$name]" -> ref }
-    case output.Data.Collection.Set(of)    => argToNamedRef(getName)(of).map { case (name, ref) => show"{$name}" -> ref }
+    case output.Data.Collection.Option(of) =>
+      argToNamedRef(getName)(of).map { case (name, ref) => show"$name?" -> ref }
+    case output.Data.Collection.Array(of) =>
+      argToNamedRef(getName)(of).map { case (name, ref) => show"[$name]" -> ref }
+    case output.Data.Collection.Set(of) =>
+      argToNamedRef(getName)(of).map { case (name, ref) => show"{$name}" -> ref }
     case output.Data.Collection.Map(key, value) =>
       argToNamedRef(getName)(key).map { case (name, ref) => show"{$name:_}" -> ref } ++ argToNamedRef(getName)(value)
         .map {
